@@ -38,6 +38,7 @@ class NormalizedReview:
     total_reviewed: int
     total_matches: int
     review_sha256: str
+    review_identity_sha256: str
     game_type: str | None
     rule_context: str | None
     decisions: tuple[dict[str, Any], ...]
@@ -211,6 +212,9 @@ def normalize_review(raw: bytes, metadata: ImportMetadata = ImportMetadata()) ->
     if len(known_matches) == total_reviewed and sum(known_matches) != total_matches:
         raise ValidationError("review.total_matches does not match entry is_equal values")
 
+    stable_payload = dict(payload)
+    stable_payload.pop("loading_time", None)
+    stable_payload.pop("review_time", None)
     log = payload.get("mjai_log")
     log_sha256 = hashlib.sha256(_canonical(log).encode()).hexdigest() if log is not None else None
     engine = _text_value(payload.get("engine", "mortal")) or "mortal"
@@ -238,6 +242,7 @@ def normalize_review(raw: bytes, metadata: ImportMetadata = ImportMetadata()) ->
         total_reviewed=total_reviewed,
         total_matches=total_matches,
         review_sha256=hashlib.sha256(raw).hexdigest(),
+        review_identity_sha256=hashlib.sha256(_canonical(stable_payload).encode()).hexdigest(),
         game_type=game_type,
         rule_context=rule_context,
         decisions=decisions,
@@ -252,7 +257,11 @@ def import_review(connection: sqlite3.Connection, normalized: NormalizedReview) 
     initialize(connection)
     with connection:
         existing_review = connection.execute(
-            "SELECT id FROM reviews WHERE review_sha256 = ?", (normalized.review_sha256,)
+            """
+            SELECT id FROM reviews
+            WHERE review_sha256 = ? OR review_identity_sha256 = ?
+            """,
+            (normalized.review_sha256, normalized.review_identity_sha256),
         ).fetchone()
         if existing_review is not None:
             return "duplicate"
@@ -282,13 +291,15 @@ def import_review(connection: sqlite3.Connection, normalized: NormalizedReview) 
             """
             INSERT INTO reviews(game_id, player_id, engine, reviewer_version, model_tag,
                                 model_identity, grp_identity, temperature, rating,
-                                total_reviewed, total_matches, review_sha256, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                total_reviewed, total_matches, review_sha256,
+                                review_identity_sha256, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (game_id, normalized.metadata.player_id, normalized.engine, normalized.reviewer_version,
              normalized.model_tag, normalized.model_identity, normalized.grp_identity,
              normalized.temperature, normalized.rating, normalized.total_reviewed,
-             normalized.total_matches, normalized.review_sha256, _now()),
+             normalized.total_matches, normalized.review_sha256,
+             normalized.review_identity_sha256, _now()),
         )
         review_id = int(cursor.lastrowid)
         connection.executemany(

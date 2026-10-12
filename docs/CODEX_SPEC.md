@@ -107,6 +107,16 @@
 - 評価条件が異なるレビューは集計条件を分け、Mortal Ratingは単純平均しない。
 - CLIでAI一致率、低推奨行動率、対局ごとのMortal Ratingを確認できるようにする。
 
+### Phase 1.5 — ローカル牌譜解析パイプライン
+
+- ローカルのTenhou/6 JSONだけを入力として、既存のmjai-reviewerとMortalを呼び出す。
+- 実行ファイル、Mortal設定、Mortal Pythonモジュールパスは明示設定する。
+- `subprocess`は`shell=False`の引数配列を使用し、解析失敗時はSQLiteへ登録しない。
+- 生成したMJAI JSON Lines・レビューJSONはGit管理外のローカル出力先へ保存する。
+- 入力の`ref`と明示された`--game-id`、対象`--player-id`を検証し、不明な情報を推測しない。
+- Phase 1インポーターを再利用し、同じ入力・同じ条件の再解析は安定識別子で重複排除する。
+- 雀魂ログイン、Yostar認証、共有URL取得、ブラウザ操作、GUIは対象外とする。
+
 ### Phase 2 — 3指標・行動ごとの高度な集計
 
 - MortalレビューJSONを正規化して保存。比較不可能・欠損値を記録。

@@ -8,6 +8,7 @@ from pathlib import Path
 from .errors import AnalyzerError
 from .importer import ImportMetadata, import_file
 from .report import format_summary, list_games, show_game, summary
+from .runner import AnalysisConfig, analyze_log
 from .schema import connect, initialize
 
 
@@ -52,6 +53,21 @@ def build_parser() -> argparse.ArgumentParser:
     report = sub.add_parser("summary", help="Summarize imported reviews")
     report.add_argument("--database", default="local_data/mahjong_analyzer.sqlite3")
     report.add_argument("--threshold", type=float, default=0.05)
+    analyze = sub.add_parser("analyze-log", help="Review a local Tenhou/6 JSON and import it")
+    analyze.add_argument("path", type=Path)
+    analyze.add_argument("--player-id", type=int, required=True)
+    analyze.add_argument("--database", default="local_data/mahjong_analyzer.sqlite3")
+    analyze.add_argument("--reviewer-exe", type=Path, required=True)
+    analyze.add_argument("--mortal-exe", type=Path, required=True)
+    analyze.add_argument("--mortal-cfg", type=Path, required=True)
+    analyze.add_argument("--output-dir", type=Path, default=Path("local_data/analysis"))
+    analyze.add_argument("--temperature", type=float, default=0.1)
+    analyze.add_argument("--timeout", type=int, default=900)
+    analyze.add_argument("--python-path", type=Path)
+    analyze.add_argument("--game-id")
+    analyze.add_argument("--played-at")
+    analyze.add_argument("--game-type")
+    analyze.add_argument("--rule-context")
     return parser
 
 
@@ -106,6 +122,35 @@ def main(argv: list[str] | None = None) -> int:
                 print(format_summary(summary(connection, args.threshold)))
             return 0
         except ValueError as exc:
+            print(f"error: {exc}")
+            return 1
+    if args.command == "analyze-log":
+        try:
+            result = analyze_log(
+                args.path,
+                Path(args.database),
+                args.player_id,
+                AnalysisConfig(
+                    reviewer_executable=args.reviewer_exe,
+                    mortal_executable=args.mortal_exe,
+                    mortal_config=args.mortal_cfg,
+                    output_dir=args.output_dir,
+                    temperature=args.temperature,
+                    timeout_seconds=args.timeout,
+                    python_path=args.python_path,
+                ),
+                game_id=args.game_id,
+                played_at=args.played_at,
+                game_type=args.game_type,
+                rule_context=args.rule_context,
+            )
+            print(json.dumps({"status": result.import_status,
+                              "mjai": str(result.mjai_path),
+                              "review": str(result.review_path)}, ensure_ascii=False))
+            with _db(args) as connection:
+                print(format_summary(summary(connection, 0.05)))
+            return 0
+        except (OSError, AnalyzerError, ValueError) as exc:
             print(f"error: {exc}")
             return 1
     return 2

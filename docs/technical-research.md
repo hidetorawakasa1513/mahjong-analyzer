@@ -458,6 +458,72 @@ export MAHJONG_REPLAY_CONVERTER_CONFIG_DIR=/private/tmp/mahjong-replay-converter
 
 雀魂へ接続しない分離環境で、Python 3.12、依存パッケージ、CLIヘルプ、ローカルMJAI→Tenhou/6変換まで確認できた。実牌譜取得は未実施であり、次の段階でのみユーザーの明示的な許可を得て検討する。
 
+## 14. Phase 1.5-A: ローカル解析パイプライン実機検証（2026-10-12）
+
+既存のPhase 0環境を再利用し、雀魂・Yostarへ接続せず、公開Tenhouサンプルをmjai-reviewerとMortalで解析してPhase 1 SQLiteへ保存した。
+
+### 使用環境
+
+- 入力: `.phase0-work/logs/sample-tenhou.json`
+- mjai-reviewer: `.phase0-work/mjai-reviewer/target/release/mjai-reviewer`、1.5.10、arm64
+- Mortal: `.phase0-work/Mortal/mortal/mortal`、CPU実行
+- Mortal config: `.phase0-work/Mortal/mortal/config.toml`
+- Mortal Python: 既存`.venv-mortal`、PyTorch 2.14.1
+- 出力・SQLite: `/private/tmp/mahjong-analyzer-phase15.*`配下
+
+### 実行コマンド
+
+```sh
+export PATH="$PWD/.venv-mortal/bin:$PATH"
+.venv/bin/mahjong-analyzer analyze-log \
+  .phase0-work/logs/sample-tenhou.json \
+  --player-id 0 \
+  --database /private/tmp/mahjong-analyzer-phase15.RUN/analysis.sqlite3 \
+  --reviewer-exe "$PWD/.phase0-work/mjai-reviewer/target/release/mjai-reviewer" \
+  --mortal-exe "$PWD/.phase0-work/Mortal/mortal/mortal" \
+  --mortal-cfg "$PWD/.phase0-work/Mortal/mortal/config.toml" \
+  --python-path "$PWD/.phase0-work/Mortal/mortal" \
+  --output-dir /private/tmp/mahjong-analyzer-phase15.RUN/output
+```
+
+### 実測結果
+
+- Tenhou/6 JSONのローカル検証: 成功
+- mjai-reviewer起動: 成功
+- Mortal CPU推論: 成功
+- MJAI JSON Lines生成: 成功（16,198 bytes）
+- レビューJSON生成: 成功（93,951 bytes）
+- SQLite保存: 成功（games 1、reviews 1、decisions 51）
+- 同一入力の再解析: `duplicate`となり、件数はgames 1、reviews 1、decisions 51のまま
+
+3指標はPhase 0の実測値と一致した。
+
+| 指標 | 実測値 |
+|---|---:|
+| total_reviewed | 51 |
+| total_matches | 41 |
+| AI一致率 | 41/51 = 0.8039215686 |
+| 低推奨行動数 | 10 |
+| 低推奨行動率（閾値0.05） | 10/51 = 0.1960784314 |
+| Mortal Rating | 0.8776929786449009 |
+
+レビューJSONの`loading_time`・`review_time`は実行ごとに変動するため、生JSON SHA-256だけでは再解析が重複することが判明した。生JSONハッシュを保持したまま、これらの揮発フィールドを除いた`review_identity_sha256`を追加して冪等化した。
+
+### 自動テスト
+
+```sh
+.venv/bin/python -m pytest -q
+```
+
+実装後の単体テストは19件成功。subprocessの引数配列、`shell=False`、実行ファイル不在、Mortal終了失敗、破損レビューJSON、重複、SQLite未作成、入力検証をモックで確認した。
+
+### 未検証事項
+
+- 実際の雀魂牌譜、共有URL、認証、Yostar通信。
+- MPS推論。今回もCPU経路のみ。
+- 実ユーザーの牌譜に対するプレイヤー座席対応。
+- Mortal/GRPモデルの配布条件が異なる構成での比較。
+
 ## 13. Phase 1 CLI基盤実装（2026-10-12）
 
 Phase 1のうち、レビューJSONの取り込み・SQLite保存・基本3指標の集計を実装した。雀魂ログイン、共有URL取得、Mortal実行、Streamlit GUIは実装していない。

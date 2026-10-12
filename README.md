@@ -62,6 +62,28 @@ Mortal/mjai-reviewerのJSONを1件取り込みます。対局IDと対象プレ�
 .venv/bin/mahjong-analyzer summary --threshold 0.10 --database local_data/mahjong_analyzer.sqlite3
 ```
 
+## Phase 1.5-A: ローカル牌譜解析
+
+雀魂へ接続せず、ローカルに保存済みのTenhou/6 JSONを既存のmjai-reviewer・Mortalへ渡して解析できます。実行ファイルとMortal設定は明示指定します。
+
+```bash
+export PATH="$PWD/.venv-mortal/bin:$PATH"
+.venv/bin/mahjong-analyzer analyze-log path/to/game.json \
+  --player-id 0 \
+  --database local_data/mahjong_analyzer.sqlite3 \
+  --reviewer-exe /path/to/mjai-reviewer \
+  --mortal-exe /path/to/Mortal/mortal/mortal \
+  --mortal-cfg /path/to/Mortal/mortal/config.toml \
+  --python-path /path/to/Mortal/mortal \
+  --output-dir local_data/analysis
+```
+
+`--player-id`はTenhouの座席番号で、0が東家、1が下家、2が対面、3が上家です。入力Tenhou/6の`ref`がレビューJSONに引き継がれない場合に備え、入力の`ref`を対局IDとして保存します。対局IDが入力にない場合は`--game-id`を指定してください。`--python-path`はMortalラッパーが使用するPythonモジュールの場所です。
+
+解析結果としてMJAI JSON LinesとレビューJSONを`--output-dir`へ保存し、レビューJSONは既存のPhase 1インポーターでSQLiteへ登録します。再実行時は`loading_time`・`review_time`を除いた安定識別子で重複判定します。入力ファイル・中間ファイル・SQLiteはGit管理対象外にしてください。
+
+失敗時はレビューJSONの検証・SQLite登録前に停止します。subprocessは`shell=False`の引数配列で起動し、雀魂、Yostar、認証情報にはアクセスしません。
+
 AI一致率と低推奨行動率は評価条件ごとに集計されます。低推奨行動率は`actual_probability < threshold`で計算し、欠損確率は分母から除外します。これは客観的な悪手率ではありません。Mortal Ratingは対局ごとに保存・表示し、複数対局の単純平均は行いません。モデル、GRP、reviewer、温度、ルールが不明な値は不明のまま保存します。
 
 データベース、レビューJSON、個人牌譜、認証情報、モデル重みはGitへ追加しないでください。

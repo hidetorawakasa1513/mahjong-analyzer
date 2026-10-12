@@ -58,7 +58,7 @@ def db(tmp_path: Path) -> sqlite3.Connection:
 
 def test_sqlite_initialization_enables_foreign_keys(db: sqlite3.Connection) -> None:
     assert db.execute("PRAGMA foreign_keys").fetchone()[0] == 1
-    assert db.execute("SELECT value FROM schema_meta WHERE key = 'schema_version'").fetchone()[0] == "1"
+    assert db.execute("SELECT value FROM schema_meta WHERE key = 'schema_version'").fetchone()[0] == "2"
 
 
 def test_normal_import_and_metrics(db: sqlite3.Connection) -> None:
@@ -90,6 +90,17 @@ def test_same_json_is_idempotent(db: sqlite3.Connection) -> None:
     assert import_review(db, normalized) == "duplicate"
     assert db.execute("SELECT COUNT(*) FROM reviews").fetchone()[0] == 1
     assert db.execute("SELECT COUNT(*) FROM decisions").fetchone()[0] == 2
+
+
+def test_volatile_review_times_do_not_create_duplicate(db: sqlite3.Connection) -> None:
+    first = payload()
+    second = payload()
+    first["loading_time"] = "1ms"
+    first["review_time"] = "1s"
+    second["loading_time"] = "2ms"
+    second["review_time"] = "2s"
+    assert import_review(db, normalize_review(json.dumps(first).encode())) == "imported"
+    assert import_review(db, normalize_review(json.dumps(second).encode())) == "duplicate"
 
 
 def test_same_game_can_have_different_reviews(db: sqlite3.Connection) -> None:

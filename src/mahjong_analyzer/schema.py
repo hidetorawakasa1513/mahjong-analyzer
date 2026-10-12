@@ -48,6 +48,7 @@ def initialize(connection: sqlite3.Connection) -> None:
             total_reviewed INTEGER NOT NULL CHECK(total_reviewed >= 0),
             total_matches INTEGER NOT NULL CHECK(total_matches >= 0),
             review_sha256 TEXT NOT NULL UNIQUE,
+            review_identity_sha256 TEXT,
             created_at TEXT NOT NULL
         );
 
@@ -71,8 +72,19 @@ def initialize(connection: sqlite3.Connection) -> None:
         );
 
         INSERT INTO schema_meta(key, value)
-        VALUES ('schema_version', '1')
+        VALUES ('schema_version', '2')
         ON CONFLICT(key) DO UPDATE SET value = excluded.value;
         """
     )
+    columns = {row[1] for row in connection.execute("PRAGMA table_info(reviews)")}
+    if "review_identity_sha256" not in columns:
+        connection.execute("ALTER TABLE reviews ADD COLUMN review_identity_sha256 TEXT")
+    connection.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS reviews_identity_unique
+        ON reviews(review_identity_sha256)
+        WHERE review_identity_sha256 IS NOT NULL
+        """
+    )
+    connection.execute("UPDATE schema_meta SET value = '2' WHERE key = 'schema_version'")
     connection.commit()
