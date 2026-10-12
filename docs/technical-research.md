@@ -360,3 +360,100 @@ JSONのトップレベルには `engine`, `game_length`, `version`, `player_id`,
 Apple Silicon arm64上で、分離Python環境、Rust拡張、mjai-reviewer、公開牌譜、Mortal CPU推論、JSON出力までの一連の動作を確認した。3指標も実JSONから取得できたため、Phase 0の実行環境検証は「条件付きで完了」とする。
 
 ただし、モデルとGRPの組み合わせおよびMPSは未検証である。Phase 1のアプリ実装へ進まず、次はユーザーが許可したモデル構成を固定するか、同一配布元のMortal/GRPペアを確保する検証を行う。
+
+## 12. Phase 0-C Step 3-A: Mahjong-Replay-Converter CLI実機検証（2026-10-12）
+
+Mahjong-Replay-Converter v0.2.3を、雀魂に接続しない条件でローカルCLI検証した。既存の監査済みソースを再利用し、Commitは次の値と一致した。
+
+```text
+61f5ae1f36ee7419173cccb03fe8afdf81d57e28
+```
+
+### 隔離環境
+
+- ソース監査ディレクトリ: `/private/tmp/mahjong-replay-converter-audit.TQpKqc/repo`
+- Python環境: `/private/tmp/mahjong-replay-converter-cli.tEowlf/.venv`
+- Python: 3.12.12
+- Apple Silicon向けCPythonを使用
+- 既存の`.venv-mortal`、プロジェクト内のPython環境、システムPythonは変更していない
+- 生成したサンプル牌譜・設定・出力はすべて`/private/tmp`配下に置き、Git管理対象にしていない
+
+### インストール
+
+実行したコマンド:
+
+```sh
+python3.12 -m venv /private/tmp/mahjong-replay-converter-cli.tEowlf/.venv
+/private/tmp/mahjong-replay-converter-cli.tEowlf/.venv/bin/python -m pip install \
+  --no-input --no-cache-dir --index-url https://pypi.org/simple \
+  -e /private/tmp/mahjong-replay-converter-audit.TQpKqc/repo
+```
+
+依存パッケージの取得先はPyPIのみで、インストール中に雀魂、Yostar、GitHub Releasesへのアクセスは発生しなかった。ビルドバックエンドは`hatchling`で、`ms-api`はローカルwheelビルドされた。
+
+主要な導入バージョン:
+
+| パッケージ | バージョン |
+|---|---:|
+| mahjong-replay-converter | 0.2.3 |
+| aiohttp | 3.14.5 |
+| flet / flet-desktop | 0.85.3 |
+| keyring | 25.7.0 |
+| ms-api | 0.11.100 |
+| platformdirs | 4.13.0 |
+| tensoul | 0.1.8 |
+| websockets | 15.0.1 |
+| protobuf | 7.36.2 |
+
+### CLI検証
+
+ヘルプ表示に成功した。
+
+```sh
+/private/tmp/mahjong-replay-converter-cli.tEowlf/.venv/bin/mahjong-replay-converter --help
+/private/tmp/mahjong-replay-converter-cli.tEowlf/.venv/bin/mahjong-replay-converter convert-file --help
+```
+
+利用可能なサブコマンドは`convert`、`convert-file`、`send-code`である。`cli.py`のimport時に`updater`は読み込まれず、CLI検証中に自動更新処理は起動しなかった。
+
+GUI側には`app.py`から起動時に`check_for_update()`を作成するフックがあり、更新が見つかった場合は`download_update()`と`apply_downloaded_update()`へ進む実装である。したがって、雀魂接続を伴わない検証と自動更新回避にはCLIの`convert-file`を使用し、GUIは起動しない。
+
+### ローカル変換
+
+リポジトリの検証ロジックに基づく合法な1局のMJAI JSON Linesを一時生成し、次を実行した。
+
+```sh
+export MAHJONG_REPLAY_CONVERTER_CONFIG_DIR=/private/tmp/mahjong-replay-converter-cli.tEowlf/config
+/private/tmp/mahjong-replay-converter-cli.tEowlf/.venv/bin/mahjong-replay-converter \
+  convert-file /private/tmp/mahjong-replay-converter-cli.tEowlf/input/legal.mjai.jsonl \
+  --output /private/tmp/mahjong-replay-converter-cli.tEowlf/output \
+  --format tenhou6
+```
+
+結果:
+
+- CLI終了コード: 0
+- 出力: `legal-2.json`（487 bytes）
+- `ver`: `2.3`
+- プレイヤー数: 4
+- 局数: 1
+- ルール表示: `四人東風戦`
+- 牌譜参照ID: `local-legal-sample`
+- MJAIからTenhou/6 JSONへの変換: 成功
+
+最初に使用した簡略Tenhouテストデータは、同一牌の既知枚数が5枚を超えるため、CLIの厳密な検証で拒否された。これは入力データの問題であり、合法なMJAI入力では変換に成功した。
+
+また、設定ディレクトリを指定しない場合、CLIは変換後の履歴保存のため既定のmacOS設定先`~/Library/Application Support/MahjongReplayConverter`へ書き込もうとした。隔離検証では`MAHJONG_REPLAY_CONVERTER_CONFIG_DIR`を指定して回避した。実運用でも設定・履歴・Keychainの保存先を事前に確認する必要がある。
+
+### 今回確認できなかった事項
+
+- `convert`による雀魂共有URLの取得。雀魂・Yostarへの接続は禁止したため未実施。
+- Yostar認証、認証コード、Tokenの使用。
+- GUI起動、GUI自動更新、DMGの実行。
+- 実雀魂牌譜のTenhou/6変換。
+- Mortal・mjai-reviewerへの接続。
+- CLIの完全なpytestスイート。dev依存（pytest等）は今回の目的に不要なため導入していない。
+
+### Step 3-A判定
+
+雀魂へ接続しない分離環境で、Python 3.12、依存パッケージ、CLIヘルプ、ローカルMJAI→Tenhou/6変換まで確認できた。実牌譜取得は未実施であり、次の段階でのみユーザーの明示的な許可を得て検討する。
