@@ -457,3 +457,46 @@ export MAHJONG_REPLAY_CONVERTER_CONFIG_DIR=/private/tmp/mahjong-replay-converter
 ### Step 3-A判定
 
 雀魂へ接続しない分離環境で、Python 3.12、依存パッケージ、CLIヘルプ、ローカルMJAI→Tenhou/6変換まで確認できた。実牌譜取得は未実施であり、次の段階でのみユーザーの明示的な許可を得て検討する。
+
+## 13. Phase 1 CLI基盤実装（2026-10-12）
+
+Phase 1のうち、レビューJSONの取り込み・SQLite保存・基本3指標の集計を実装した。雀魂ログイン、共有URL取得、Mortal実行、Streamlit GUIは実装していない。
+
+### 実装内容
+
+- Python 3.12向けの`pyproject.toml`とCLIエントリポイントを追加。
+- SQLiteの`games`、`reviews`、`decisions`、`schema_meta`を追加。
+- `PRAGMA foreign_keys = ON`、スキーマバージョン、ファイル単位のトランザクションを使用。
+- レビューJSONのUTF-8・必須フィールド・型・局面数・プレイヤーIDを検証。
+- `details[actual_index].prob`を保存し、欠損・範囲外・不正値を比較不能として記録。
+- レビューJSON SHA-256による再取り込み冪等性を実装。
+- 同一対局の別レビューを保持し、既知の`mjai_log`内容ハッシュが異なる場合は競合として拒否。
+- AI一致率と低推奨行動率を評価条件ごとに加重集計。
+- Mortal Ratingはレビュー単位で保存・表示し、複数対局の単純平均は行わない。
+- `init-db`、`import-review`、`import-reviews`、`list-games`、`show-game`、`summary`を追加。
+
+### テスト結果
+
+プロジェクト専用`.venv`（Python 3.12.12）にpytest 8.4.2を導入し、以下を実行した。
+
+```sh
+.venv/bin/python -m pytest -q
+.venv/bin/python -m compileall -q src tests
+.venv/bin/mahjong-analyzer --help
+```
+
+結果:
+
+- pytest: 13件成功
+- Pythonコンパイルチェック: 成功
+- CLIヘルプ: 成功
+- SQLite初期化、正常取り込み、不正JSON、必須項目欠損、重複、別レビュー、対局競合、誤ったID、0件、確率欠損、閾値変更、加重集計、条件分離、Rating非平均、ロールバックを検証。
+
+テストデータは合成データであり、Phase 0で確認した実データ値`41/51`、`10/51`、`0.8776929786`を再現した実データ検証ではない。実レビューJSONがプロジェクト内に存在しないため、実データの再取り込みは未実施である。
+
+### セキュリティ確認
+
+- 個人牌譜、認証情報、Token、モデル重み、SQLite実データはリポジトリに追加していない。
+- `.venv`、`local_data/`、SQLite拡張子を`.gitignore`対象にした。
+- CLIに認証コード入力機能や雀魂への通信処理は追加していない。
+- 元のレビューJSONは読み取り専用で扱い、変更しない。

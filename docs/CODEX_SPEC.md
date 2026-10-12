@@ -1,12 +1,12 @@
 # Mahjong Analyzer — Codex向け開発仕様書
 
-> 状態: 初期ドラフト（Phase 0の技術検証前）  
+> 状態: Phase 1 CLI実装
 > 更新日: 2026-10-12  
 > 正本: このリポジトリの `docs/CODEX_SPEC.md`（配置後）
 
 ## 0. Codexへの最重要指示
 
-この文書は **開発の目的・制約・段階的な実装指示** を定める。未検証の外部仕様を事実として扱わないこと。**最初の作業はPhase 0のみ** とし、Mortalが動くか、雀魂の牌譜を取り込めるか、解析結果を機械的に読めるかを実測する。Phase 1以降を先走って実装しない。確認事項・実施コマンド・結果・失敗理由を `docs/technical-research.md` に記録する。既存のObsidian Vaultや他のリポジトリを許可なく変更しない。
+この文書は **開発の目的・制約・段階的な実装指示** を定める。未検証の外部仕様を事実として扱わないこと。Phase 0の技術検証を経て、現在はPhase 1のCLI基盤を対象とする。確認事項・実施コマンド・結果・失敗理由を`docs/technical-research.md`に記録する。既存のObsidian Vaultや他のリポジトリを許可なく変更しない。
 
 ## 1. 背景・目的
 
@@ -102,11 +102,15 @@
 - 複数ファイルの読み込み、形式検証、重複排除、エラー処理、SQLite保存。
 - 対局者を特定できるIDや席番の検証。誤認したレビューを保存しない。
 - 生データを保全し、同じデータを再投入しても重複しないことをテスト。
+- MortalレビューJSONを`games`、`reviews`、`decisions`へ正規化して保存する。
+- SQLiteの外部キー、スキーマバージョン、ファイル単位のトランザクションを使用する。
+- 評価条件が異なるレビューは集計条件を分け、Mortal Ratingは単純平均しない。
+- CLIでAI一致率、低推奨行動率、対局ごとのMortal Ratingを確認できるようにする。
 
-### Phase 2 — 3指標・行動ごとの集計
+### Phase 2 — 3指標・行動ごとの高度な集計
 
 - MortalレビューJSONを正規化して保存。比較不可能・欠損値を記録。
-- AI一致率、低推奨行動率、Ratingの再現性を検証。
+- AI一致率、低推奨行動率、Ratingの再現性を検証し、Phase 1の基本集計を拡張する。
 - 巡目・局面別集計を追加し、対象行動数を必ず表示。
 
 ### Phase 3 — 弱点と成長のダッシュボード
@@ -157,4 +161,3 @@ mahjong-analyzer/
 - https://github.com/Equim-chan/mjai-reviewer/blob/master/src/opts.rs
 - https://github.com/Equim-chan/mjai-reviewer/blob/master/faq.md
 - https://github.com/Equim-chan/mjai-reviewer/blob/master/mjsoul.adoc
-
