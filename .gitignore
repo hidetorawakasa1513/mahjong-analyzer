@@ -1,0 +1,39 @@
+# Python environments and caches
+.venv/
+.venv-*/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Local/private inputs and generated outputs
+local_data/
+data/
+logs/
+artifacts/
+reports/
+models/
+.phase0-work/
+
+# Mortal / ML artifacts
+*.pth
+*.pt
+*.ckpt
+*.safetensors
+*.onnx
+
+# Build artifacts
+target/
+*.dylib
+*.so
+
+# OS/editor
+.DS_Store
