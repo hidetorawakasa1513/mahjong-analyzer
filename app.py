@@ -462,20 +462,22 @@ def _render_analysis_panel(connection: Any, scene: dict[str, Any], asset_root: P
 
 
 def _decision(connection: Any, review_root: Path, source_root: Path, asset_root: Path) -> None:
-    st.title("局面詳細")
+    st.subheader("局面詳細")
     default_id = st.session_state.get("selected_decision_id", 1)
-    decision_id = st.number_input("decision_id", min_value=1, value=default_id, step=1)
+    id_column, status_column = st.columns([1, 3])
+    with id_column:
+        decision_id = st.number_input("decision_id", min_value=1, value=default_id, step=1)
     try:
         scene = scene_data(connection, decision_id, review_root=review_root, source_root=source_root)
     except (AnalyzerError, OSError, ValueError) as exc:
         st.error(str(exc)); return
-    st.success(f"復元状態: {scene['status']}")
+    with status_column:
+        st.caption(f"復元状態: {scene['status']}")
     table_column, analysis_column = st.columns([2.25, 1], gap="large")
     with table_column:
         _render_table(scene, asset_root)
     with analysis_column:
         _render_analysis_panel(connection, scene, asset_root)
-    st.caption("Mortalの確率・Q値は評価情報であり、期待失点ではありません。")
 
 
 def main() -> None:

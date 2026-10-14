@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from mahjong_analyzer.dashboard.table_renderer import render_evaluation_html, render_table_html
+from mahjong_analyzer.dashboard.table_renderer import render_evaluation_html, render_table_html, table_css
 
 
 ASSETS = Path(__file__).parents[1] / "assets/third_party/mj_king/tiles"
@@ -81,3 +81,14 @@ def test_evaluation_shows_three_candidates_and_collapses_the_rest() -> None:
     assert html.count("もっとみる") == 1
     assert "もっとみる（2件）" in html
     assert "40.00%" in html and "3.00%" in html
+
+
+def test_table_layout_keeps_player_zones_and_hand_meld_gap_explicit() -> None:
+    css = table_css()
+    assert "--hand-meld-gap" in css
+    assert ".ma-river-top" in css and ".ma-river-bottom" in css
+    assert ".ma-melds-top" in css and ".ma-melds-bottom" in css
+    assert ".ma-center" in css and ".ma-legend" in css
+    html = render_table_html(_scene(), ASSETS)
+    assert "ma-player-area" in html and "ma-hand-area" in html
+    assert "ma-meld-area" in html and "ma-river-area" in html
