@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mahjong Analyzer — tile prototypes</title>
+  <style>
+    :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+    body { margin: 24px; background: Canvas; color: CanvasText; }
+    section { margin: 24px 0; }
+    .tiles { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start; }
+    .tile { display: grid; gap: 7px; justify-items: center; font-family: ui-monospace, monospace; }
+    .tile img { display: block; width: 80px; height: 112px; }
+    .tile.small img { width: 48px; height: 67px; }
+    .tile small { opacity: .72; }
+    .note { max-width: 760px; opacity: .78; }
+  </style>
+</head>
+<body>
+  <h1>牌画像プロトタイプ（16種）</h1>
+  <p class="note">実物牌の共通特徴を参考にした独自SVGです。外部画像・CDN・スクリプトは使用していません。上段は標準サイズ、下段は小サイズです。</p>
+  <section><h2>萬子</h2><div class="tiles">
+    <div class="tile"><img src="1m.svg" alt="1m"><code>1m</code></div>
+    <div class="tile"><img src="5m.svg" alt="5m"><code>5m</code></div>
+    <div class="tile"><img src="9m.svg" alt="9m"><code>9m</code></div>
+  </div></section>
+  <section><h2>筒子</h2><div class="tiles">
+    <div class="tile"><img src="1p.svg" alt="1p"><code>1p</code></div>
+    <div class="tile"><img src="5p.svg" alt="5p"><code>5p</code></div>
+    <div class="tile"><img src="9p.svg" alt="9p"><code>9p</code></div>
+  </div></section>
+  <section><h2>索子</h2><div class="tiles">
+    <div class="tile"><img src="1s.svg" alt="1s"><code>1s</code></div>
+    <div class="tile"><img src="5s.svg" alt="5s"><code>5s</code></div>
+    <div class="tile"><img src="9s.svg" alt="9s"><code>9s</code></div>
+  </div></section>
+  <section><h2>字牌</h2><div class="tiles">
+    <div class="tile"><img src="E.svg" alt="E"><code>E</code></div>
+    <div class="tile"><img src="P.svg" alt="P"><code>P</code></div>
+    <div class="tile"><img src="F.svg" alt="F"><code>F</code></div>
+    <div class="tile"><img src="C.svg" alt="C"><code>C</code></div>
+  </div></section>
+  <section><h2>赤牌</h2><div class="tiles">
+    <div class="tile"><img src="5mr.svg" alt="5mr"><code>5mr</code></div>
+    <div class="tile"><img src="5pr.svg" alt="5pr"><code>5pr</code></div>
+    <div class="tile"><img src="5sr.svg" alt="5sr"><code>5sr</code></div>
+  </div></section>
+  <section><h2>小サイズ比較</h2><div class="tiles">
+    <div class="tile small"><img src="1m.svg" alt="1m"><code>1m</code></div>
+    <div class="tile small"><img src="5p.svg" alt="5p"><code>5p</code></div>
+    <div class="tile small"><img src="1s.svg" alt="1s"><code>1s</code></div>
+    <div class="tile small"><img src="E.svg" alt="E"><code>E</code></div>
+    <div class="tile small"><img src="5mr.svg" alt="5mr"><code>5mr</code></div>
+  </div></section>
+</body>
+</html>

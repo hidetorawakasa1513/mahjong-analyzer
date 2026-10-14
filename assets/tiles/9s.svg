@@ -1,18 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 112" role="img" aria-labelledby="title desc">
   <title id="title">9s</title>
-  <desc id="desc">9s牌</desc>
-  <rect x="1" y="1" width="78" height="110" rx="8" fill="#fffdf8" stroke="#27313a" stroke-width="2"/>
-  <rect x="5" y="5" width="70" height="102" rx="5" fill="none" stroke="#d6d0c5" stroke-width="1"/>
-
-  <text x="40" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="25" font-weight="700" fill="#16805a">9</text>
-  <rect x="23" y="50" width="6" height="16" rx="2.5" fill="#16805a" transform="rotate(-28 26 58)"/>
-  <rect x="37" y="50" width="6" height="16" rx="2.5" fill="#16805a" transform="rotate(28 40 58)"/>
-  <rect x="51" y="50" width="6" height="16" rx="2.5" fill="#16805a" transform="rotate(-28 54 58)"/>
-  <rect x="23" y="66" width="6" height="16" rx="2.5" fill="#16805a" transform="rotate(28 26 74)"/>
-  <rect x="37" y="66" width="6" height="16" rx="2.5" fill="#16805a" transform="rotate(-28 40 74)"/>
-  <rect x="51" y="66" width="6" height="16" rx="2.5" fill="#16805a" transform="rotate(28 54 74)"/>
-  <rect x="23" y="82" width="6" height="16" rx="2.5" fill="#16805a" transform="rotate(-28 26 90)"/>
-  <rect x="37" y="82" width="6" height="16" rx="2.5" fill="#16805a" transform="rotate(28 40 90)"/>
-  <rect x="51" y="82" width="6" height="16" rx="2.5" fill="#16805a" transform="rotate(-28 54 90)"/>
-  <text x="40" y="103" text-anchor="middle" font-family="Arial, sans-serif" font-size="7" letter-spacing="1" fill="#59636b">S</text>
+  <desc id="desc">9索</desc>
+  <rect x="3" y="3" width="76" height="108" rx="7" fill="#1c252b" fill-opacity="0.12"/>
+  <rect x="2" y="2" width="76" height="108" rx="7" fill="#fffdf8" stroke="#31383d" stroke-width="1.4"/>
+  <rect x="5" y="5" width="70" height="102" rx="5" fill="none" stroke="#d4d0c8" stroke-width="0.8"/>
+  <g transform="rotate(-18 27 47)"><rect x="23.8" y="39" width="6.4" height="17" rx="2.8" fill="#28734e"/><path d="M24 44 H30 M24 50 H30" stroke="#fffdf8" stroke-width="1"/></g>
+  <g transform="rotate(18 40 47)"><rect x="36.8" y="39" width="6.4" height="17" rx="2.8" fill="#28734e"/><path d="M37 44 H43 M37 50 H43" stroke="#fffdf8" stroke-width="1"/></g>
+  <g transform="rotate(-18 53 47)"><rect x="49.8" y="39" width="6.4" height="17" rx="2.8" fill="#28734e"/><path d="M50 44 H56 M50 50 H56" stroke="#fffdf8" stroke-width="1"/></g>
+  <g transform="rotate(18 27 65)"><rect x="23.8" y="57" width="6.4" height="17" rx="2.8" fill="#28734e"/><path d="M24 62 H30 M24 68 H30" stroke="#fffdf8" stroke-width="1"/></g>
+  <g transform="rotate(-18 40 65)"><rect x="36.8" y="57" width="6.4" height="17" rx="2.8" fill="#28734e"/><path d="M37 62 H43 M37 68 H43" stroke="#fffdf8" stroke-width="1"/></g>
+  <g transform="rotate(18 53 65)"><rect x="49.8" y="57" width="6.4" height="17" rx="2.8" fill="#28734e"/><path d="M50 62 H56 M50 68 H56" stroke="#fffdf8" stroke-width="1"/></g>
+  <g transform="rotate(-18 27 83)"><rect x="23.8" y="75" width="6.4" height="17" rx="2.8" fill="#28734e"/><path d="M24 80 H30 M24 86 H30" stroke="#fffdf8" stroke-width="1"/></g>
+  <g transform="rotate(18 40 83)"><rect x="36.8" y="75" width="6.4" height="17" rx="2.8" fill="#28734e"/><path d="M37 80 H43 M37 86 H43" stroke="#fffdf8" stroke-width="1"/></g>
+  <g transform="rotate(-18 53 83)"><rect x="49.8" y="75" width="6.4" height="17" rx="2.8" fill="#28734e"/><path d="M50 80 H56 M50 86 H56" stroke="#fffdf8" stroke-width="1"/></g>
+  <text x="40" y="98" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" font-weight="700" letter-spacing="1" fill="#626b70">9S</text>
 </svg>

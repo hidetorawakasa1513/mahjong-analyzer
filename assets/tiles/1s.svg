@@ -1,10 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 112" role="img" aria-labelledby="title desc">
   <title id="title">1s</title>
-  <desc id="desc">1s牌</desc>
-  <rect x="1" y="1" width="78" height="110" rx="8" fill="#fffdf8" stroke="#27313a" stroke-width="2"/>
-  <rect x="5" y="5" width="70" height="102" rx="5" fill="none" stroke="#d6d0c5" stroke-width="1"/>
-
-  <text x="40" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="25" font-weight="700" fill="#16805a">1</text>
-  <rect x="23" y="50" width="6" height="16" rx="2.5" fill="#16805a" transform="rotate(-28 26 58)"/>
-  <text x="40" y="103" text-anchor="middle" font-family="Arial, sans-serif" font-size="7" letter-spacing="1" fill="#59636b">S</text>
+  <desc id="desc">1索</desc>
+  <rect x="3" y="3" width="76" height="108" rx="7" fill="#1c252b" fill-opacity="0.12"/>
+  <rect x="2" y="2" width="76" height="108" rx="7" fill="#fffdf8" stroke="#31383d" stroke-width="1.4"/>
+  <rect x="5" y="5" width="70" height="102" rx="5" fill="none" stroke="#d4d0c8" stroke-width="0.8"/>
+  <path d="M29 63 C29 53 37 47 46 51 C53 54 55 62 49 68 C43 73 34 72 29 63 Z" fill="#28734e" fill-opacity="0.13" stroke="#28734e" stroke-width="1.8"/>
+  <path d="M48 53 L61 46 L53 61 M31 62 L20 70" fill="none" stroke="#28734e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="44" cy="57" r="1.8" fill="#28734e"/>
+  <text x="40" y="98" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" font-weight="700" letter-spacing="1" fill="#626b70">1S</text>
 </svg>

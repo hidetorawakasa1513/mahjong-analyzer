@@ -1,10 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 112" role="img" aria-labelledby="title desc">
   <title id="title">1m</title>
-  <desc id="desc">1m牌</desc>
-  <rect x="1" y="1" width="78" height="110" rx="8" fill="#fffdf8" stroke="#27313a" stroke-width="2"/>
-  <rect x="5" y="5" width="70" height="102" rx="5" fill="none" stroke="#d6d0c5" stroke-width="1"/>
-
-  <text x="40" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="25" font-weight="700" fill="#b34b35">1</text>
-  <text x="40" y="91" text-anchor="middle" font-family="Hiragino Sans, Yu Gothic, Noto Sans CJK JP, sans-serif" font-size="27" font-weight="700" fill="#b34b35">萬</text>
-  <text x="40" y="103" text-anchor="middle" font-family="Arial, sans-serif" font-size="7" letter-spacing="1" fill="#59636b">M</text>
+  <desc id="desc">1萬</desc>
+  <rect x="3" y="3" width="76" height="108" rx="7" fill="#1c252b" fill-opacity="0.12"/>
+  <rect x="2" y="2" width="76" height="108" rx="7" fill="#fffdf8" stroke="#31383d" stroke-width="1.4"/>
+  <rect x="5" y="5" width="70" height="102" rx="5" fill="none" stroke="#d4d0c8" stroke-width="0.8"/>
+  <text x="40" y="47" text-anchor="middle" font-family="Hiragino Kaku Gothic ProN, Hiragino Sans, Yu Gothic, Noto Sans CJK JP, sans-serif" font-size="31" font-weight="700" fill="#9e3f2f">1</text>
+  <path d="M18 57 H62 M22 61 H58" stroke="#9e3f2f" stroke-width="1.4" stroke-linecap="round"/>
+  <text x="40" y="91" text-anchor="middle" font-family="Hiragino Kaku Gothic ProN, Hiragino Sans, Yu Gothic, Noto Sans CJK JP, sans-serif" font-size="24" font-weight="700" fill="#9e3f2f">萬</text>
+  <path d="M24 99 H56" stroke="#777d80" stroke-width="0.8"/>
 </svg>

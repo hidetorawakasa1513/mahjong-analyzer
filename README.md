@@ -264,14 +264,23 @@ test -s local_data/config.json && echo "Tenhou local identity config exists"
 
 ## 麻雀牌SVG素材プレビュー
 
-MJAIの牌識別子に対応する37種類の自作SVGは`assets/tiles/`にあります。生成し直す場合とプレビューする場合は次を実行します。
+MJAIの牌識別子に対応する37種類の自作SVGは`assets/tiles/`にあります。既存の全牌セットを再生成する場合は次を実行します。
 
 ```bash
 .venv/bin/python scripts/generate_tile_assets.py
 python3 -m http.server 8765 --bind 127.0.0.1 --directory assets/tiles
 ```
 
-ブラウザで`http://127.0.0.1:8765/preview.html`を開くと分類別一覧を確認できます。Phase 3-B②までStreamlitの局面詳細画面には組み込みません。
+ブラウザで`http://127.0.0.1:8765/preview.html`を開くと分類別一覧を確認できます。
+
+現実寄りデザインの代表牌16種は、全牌生成器とは分離した試作生成器で更新します。デザイン確認時は次を実行してください。
+
+```bash
+.venv/bin/python scripts/generate_tile_prototypes.py
+python3 -m http.server 8765 --bind 127.0.0.1 --directory assets/tiles
+```
+
+`http://127.0.0.1:8765/prototype-preview.html`で萬子・筒子・索子・字牌・赤牌を標準／小サイズで確認できます。試作段階では16種だけを更新し、Streamlitの局面詳細画面には組み込みません。
 
 ## 今後の予定
 
