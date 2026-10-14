@@ -19,6 +19,7 @@ from .identity import load_tenhou_identity
 from .importer import ImportMetadata, import_file
 from .report import format_summary, list_games, show_game, summary
 from .review import get_review_scene
+from .review_candidates import list_review_candidates
 from .runner import AnalysisConfig, analyze_log
 from .schema import connect, initialize
 from .tenhou import analyze_tenhou_path
@@ -106,7 +107,24 @@ def _print_context_result(value: object, output_format: str) -> None:
     for item in value:
         print(f"group={item['group']} decisions={item['decision_count']} "
               f"games={item['game_count']} agreement={item['ai_agreement_rate']} "
-              f"low_probability={item['low_recommendation_rate']}")
+                  f"low_probability={item['low_recommendation_rate']}")
+
+
+def _print_candidate_result(result: object, output_format: str) -> None:
+    value = {
+        "total": result.total, "offset": result.offset, "limit": result.limit,
+        "sort": result.sort, "disagreement_only": result.disagreement_only,
+        "items": list(result.items),
+    }
+    if output_format == "json":
+        print(json.dumps(value, ensure_ascii=False, indent=2))
+        return
+    print(f"total={result.total} offset={result.offset} limit={result.limit} sort={result.sort}")
+    for item in result.items:
+        print(f"decision_id={item['decision_id']} game_id={item['game_id']} "
+              f"round={item['bakaze']}{item['kyoku']} turn={item['turn_number']} "
+              f"action={item['action_category']} probability={item['actual_probability']} "
+              f"equal={item['is_equal']}")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -156,6 +174,17 @@ def build_parser() -> argparse.ArgumentParser:
     scene.add_argument("--review-json", type=Path)
     scene.add_argument("--source-root", type=Path, default=Path("data/raw/tenhou"))
     scene.add_argument("--format", choices=("json", "text"), default="json")
+    candidates = sub.add_parser("review-candidates", help="List review candidates from saved contexts")
+    candidates.add_argument("--database", default="local_data/mahjong_analyzer.sqlite3")
+    candidates.add_argument("--sort", choices=("low-probability", "disagreement", "recent"),
+                            default="low-probability")
+    candidates.add_argument("--disagreement-only", action="store_true")
+    candidates.add_argument("--offset", type=int, default=0)
+    candidates.add_argument("--limit", type=int, default=100)
+    candidates.add_argument("--early-end", type=int, default=6)
+    candidates.add_argument("--mid-end", type=int, default=12)
+    candidates.add_argument("--format", choices=("json", "text"), default="text")
+    _add_context_filter_options(candidates)
     analyze = sub.add_parser("analyze-log", help="Review a local Tenhou/6 JSON and import it")
     analyze.add_argument("path", type=Path)
     analyze.add_argument("--player-id", type=int, required=True)
@@ -450,6 +479,20 @@ def main(argv: list[str] | None = None) -> int:
                       f"round={identity['round_index']} event={identity['source_event_index']}")
                 print(f"action={mortal['action_category']} equal={mortal['is_equal']} "
                       f"probability={mortal['actual_probability']}")
+            return 0
+        except (OSError, AnalyzerError, ValueError) as exc:
+            print(f"error: {exc}")
+            return 1
+    if args.command == "review-candidates":
+        try:
+            filters = _context_filters(args)
+            with connect(Path(args.database)) as connection:
+                result = list_review_candidates(
+                    connection, sort=args.sort, filters=filters,
+                    disagreement_only=args.disagreement_only, offset=args.offset,
+                    limit=args.limit, early_end=args.early_end, mid_end=args.mid_end,
+                )
+            _print_candidate_result(result, args.format)
             return 0
         except (OSError, AnalyzerError, ValueError) as exc:
             print(f"error: {exc}")

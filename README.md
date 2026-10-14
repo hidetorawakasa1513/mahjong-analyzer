@@ -226,6 +226,29 @@ test -s local_data/config.json && echo "Tenhou local identity config exists"
 
 レビューJSONを自動探索せず明示する場合は`--review-json PATH`を指定できます。レビューJSONのSHA-256または安定識別子をSQLiteのレビュー記録と照合します。MJAIのイベント番号はレビューJSON内の`mjai_log`の0始まり番号であり、元XMLのノード番号ではありません。元`.mjlog`の参照可能性、局面状態、点数整合性は`status`と`status_reasons`で確認できます。非公開の他家手牌や未公開の山牌は出力しません。順位は同点時に`null`です。
 
+## Phase 2-C②: 復習候補一覧
+
+保存済みの判断から、復習を優先する候補を一覧できます。候補抽出は読み取り専用で、Mortalを再実行しません。
+
+```bash
+.venv/bin/mahjong-analyzer review-candidates \
+  --database local_data/mahjong_analyzer.sqlite3 \
+  --sort low-probability --limit 10 --format text
+
+.venv/bin/mahjong-analyzer review-candidates \
+  --database local_data/mahjong_analyzer.sqlite3 \
+  --sort disagreement --disagreement-only --limit 20 --format json
+
+.venv/bin/mahjong-analyzer review-candidates \
+  --database local_data/mahjong_analyzer.sqlite3 \
+  --sort recent --turn-phase mid --filter-score-target top \
+  --score-max -8000 --riichi-count 1 --limit 10 --format json
+```
+
+`--sort low-probability`は本人の選択確率の昇順（NULLは末尾）、`--sort disagreement`はAI不一致を先頭、`--sort recent`は対局日時の新しい順です。日時がない場合はファイル更新日時を使わず、対局IDと判断IDによる安定順にフォールバックします。`--disagreement-only`で不一致だけに絞れます。既存の巡目、向聴数、リーチ人数、順位、点数差、場風、親子、行動種類、評価条件のフィルタをANDで利用できます。
+
+候補には`decision_id`、局面要約、行動、Mortal第一候補、AI一致、不一致、推奨確率、MJAIイベント位置、復元状態が含まれます。候補の詳細は既存の`show-decision --decision-id ID`で確認してください。推奨確率は復習優先度の参考値であり、損失額や客観的な悪手スコアではありません。`none`判断も除外せず、非行動判断として一覧に含めます。
+
 ## 今後の予定
 
 1. Mortalとmjai-reviewerの動作検証（完了・条件付き）

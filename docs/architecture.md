@@ -53,6 +53,7 @@ XML/gzip validation → Mahjong-Replay-Converter → compatibility adapter
 - `mahjong_analyzer.identity`: local identity configuration, exact decoded player-name matching, manual-seat cross-checking, and `tw=` view validation.
 - `mahjong_analyzer.analytics`: read-only context aggregation, parameterized multi-condition decision search, configurable turn/score buckets, and structured JSON results for future UI reuse.
 - `mahjong_analyzer.review`: decision-id based scene retrieval, review JSON/MJAI event replay, public-information reconstruction, and Mortal candidate packaging for future review UI.
+- `mahjong_analyzer.review_candidates`: reusable candidate listing with shared context filters, stable sorting, pagination, and review-scene identifiers.
 
 ## Data model
 
@@ -89,6 +90,10 @@ The default is `local_data/mahjong_analyzer.sqlite3`, which is ignored by Git. U
 `review.get_review_scene()`は、登録済みの`decision_id`からレビューJSON内のMJAIログと`decision_contexts`を再利用して局面を構成する。通常の行動は対応イベントの処理前、`none`の非行動機会は参照された公開打牌を含む時点を返す。手牌・副露はレビューの判断状態を使用し、河・公開副露・リーチ状態・ドラ表示牌はMJAIを判断時点まで再生して作る。返却データにはイベント基準、元牌譜SHA-256、レビューJSON参照、状態理由を含める。
 
 元牌譜が存在する場合はSHA-256照合済みの参照を返す。復元自体はレビューJSONに保存されたMJAIから可能だが、元`.mjlog`がない場合も推測で補完せず、参照不可として明示する。非公開手牌・未公開山牌を公開情報の構造へ含めない。MortalのQ値や確率は評価値として返し、点数損失へ変換しない。
+
+## Phase 2-C②
+
+`review_candidates.list_review_candidates()`は`analytics`の共通フィルタ・後処理を再利用し、`low-probability`、`disagreement`、`recent`の3モードで候補を返す。日時不明の対局はファイル更新時刻を使わず、対局ID・判断IDの安定順にフォールバックする。NULLの推奨確率は低確率順の末尾とする。不一致優先は保存済みの`is_equal`定義を使用し、`none`を除外しない。返却結果は`show-decision`へ渡せる`decision_id`を含む。
 
 ## Phase 2-B 第2段階
 
