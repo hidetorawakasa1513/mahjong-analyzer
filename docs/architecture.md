@@ -6,6 +6,8 @@ Phase 1.5-A adds a local analysis pipeline to the Phase 1 CLI. It accepts an exi
 
 Phase 1.5-B adds local Tenhou `.mjlog` ingestion. `analyze-tenhou` accepts one file or a directory, validates raw XML/gzip XML, invokes the local Mahjong-Replay-Converter, applies only the verified Tenhou/6 compatibility normalization, and then reuses the existing reviewer/Mortal/import pipeline. A reviewer `--no-review` preflight is used to skip a matching saved review before Mortal starts. The source file SHA-256 and actual Tenhou game ID are retained for identity checks.
 
+The normal operator workflow is implemented by `organize-tenhou`. It creates `inbox/`, `processed/`, and `failed/` below the configured raw replay root. A file is copied with hash verification and removed from `inbox/` only after SQLite success; failures retain a reason sidecar in `failed/`. Existing reviewed files can be migrated with `--migrate-existing` using reviewer preflight only, without starting Mortal. Destination name collisions never overwrite a different hash.
+
 ```text
 Tenhou/6 JSON
       │
@@ -47,6 +49,7 @@ XML/gzip validation → Mahjong-Replay-Converter → compatibility adapter
 - `mahjong_analyzer.runner`: Tenhou/6 validation, mjai-reviewer/Mortal subprocess execution, intermediate output handling, and existing importer integration.
 - `mahjong_analyzer.compat`: strict Tenhou/6 action validation and the Converter v0.2.3 concealed-kan marker normalization.
 - `mahjong_analyzer.tenhou`: local `.mjlog` inspection, conversion, preflight duplicate detection, batch counts, and reuse of `runner`.
+- `mahjong_analyzer.workflow`: inbox processing, hash-verified organization, failure sidecars, retry handling, and reviewed-file migration.
 
 ## Data model
 

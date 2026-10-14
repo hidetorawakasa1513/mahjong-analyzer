@@ -9,7 +9,7 @@ import pytest
 from mahjong_analyzer.errors import AnalyzerError
 from mahjong_analyzer.importer import ImportMetadata, import_review, normalize_review
 from mahjong_analyzer.runner import AnalysisConfig, AnalysisResult
-from mahjong_analyzer.schema import connect
+from mahjong_analyzer.schema import connect, initialize
 import mahjong_analyzer.tenhou as tenhou
 
 from test_phase1 import payload
@@ -108,5 +108,36 @@ def test_tenhou_batch_failure_does_not_register_partial_data(
     connection = connect(tmp_path / "db.sqlite3")
     try:
         assert connection.execute("SELECT COUNT(*) FROM games").fetchone()[0] == 0
+    finally:
+        connection.close()
+
+
+def test_same_game_id_with_different_source_hash_is_not_skipped(tmp_path: Path) -> None:
+    connection = connect(tmp_path / "db.sqlite3")
+    initialize(connection)
+    connection.execute(
+        "INSERT INTO games(source, source_game_id, source_sha256, created_at) VALUES (?, ?, ?, ?)",
+        ("review-json", "same-game", "old-source", "now"),
+    )
+    game_id = connection.execute("SELECT last_insert_rowid()").fetchone()[0]
+    connection.execute(
+        """
+        INSERT INTO reviews(
+            game_id, player_id, engine, reviewer_version, model_tag, temperature,
+            total_reviewed, total_matches, review_sha256, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (game_id, 3, "mortal", "1.5.10", "model", 0.1, 1, 1, "review-hash", "now"),
+    )
+    connection.commit()
+    try:
+        assert not tenhou._existing_review(
+            connection, game_id="same-game", log_sha256="new-log", source_sha256="new-source",
+            player_id=3, reviewer_version_value="1.5.10", temperature=0.1, model_tag="model",
+        )
+        assert tenhou._existing_review(
+            connection, game_id="same-game", log_sha256="new-log", source_sha256="old-source",
+            player_id=3, reviewer_version_value="1.5.10", temperature=0.1, model_tag="model",
+        )
     finally:
         connection.close()

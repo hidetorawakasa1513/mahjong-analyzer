@@ -11,6 +11,7 @@ from .report import format_summary, list_games, show_game, summary
 from .runner import AnalysisConfig, analyze_log
 from .schema import connect, initialize
 from .tenhou import analyze_tenhou_path
+from .workflow import migrate_existing_tenhou, organize_tenhou_inbox
 
 
 def _db(args: argparse.Namespace) -> sqlite3.Connection:
@@ -83,6 +84,21 @@ def build_parser() -> argparse.ArgumentParser:
     tenhou.add_argument("--timeout", type=int, default=1800)
     tenhou.add_argument("--python-path", type=Path)
     tenhou.add_argument("--game-id")
+    organize = sub.add_parser("organize-tenhou", help="Process the Tenhou inbox and organize source files")
+    organize.add_argument("--root", type=Path, default=Path("data/raw/tenhou"))
+    organize.add_argument("--database", default="local_data/mahjong_analyzer.sqlite3")
+    organize.add_argument("--player-id", type=int, required=True)
+    organize.add_argument("--converter-exe", type=Path, required=True)
+    organize.add_argument("--reviewer-exe", type=Path, required=True)
+    organize.add_argument("--mortal-exe", type=Path, required=True)
+    organize.add_argument("--mortal-cfg", type=Path, required=True)
+    organize.add_argument("--model-tag", required=True)
+    organize.add_argument("--output-dir", type=Path, default=Path("local_data/tenhou-analysis"))
+    organize.add_argument("--temperature", type=float, default=0.1)
+    organize.add_argument("--timeout", type=int, default=1800)
+    organize.add_argument("--python-path", type=Path)
+    organize.add_argument("--retry-failed", action="store_true")
+    organize.add_argument("--migrate-existing", type=Path, action="append", default=[])
     return parser
 
 
@@ -199,6 +215,52 @@ def main(argv: list[str] | None = None) -> int:
                 "errors": list(result.errors),
             }, ensure_ascii=False))
             return 1 if result.failures else 0
+        except (OSError, AnalyzerError, ValueError) as exc:
+            print(f"error: {exc}")
+            return 1
+    if args.command == "organize-tenhou":
+        try:
+            config = AnalysisConfig(
+                reviewer_executable=args.reviewer_exe,
+                mortal_executable=args.mortal_exe,
+                mortal_config=args.mortal_cfg,
+                output_dir=args.output_dir / "analysis",
+                temperature=args.temperature,
+                timeout_seconds=args.timeout,
+                python_path=args.python_path,
+            )
+            migrations = []
+            for source in args.migrate_existing:
+                migrations.append(migrate_existing_tenhou(
+                    source, args.root, Path(args.database), player_id=args.player_id,
+                    converter_executable=args.converter_exe,
+                    reviewer_executable=args.reviewer_exe,
+                    output_dir=args.output_dir, model_tag=args.model_tag,
+                    temperature=args.temperature, timeout=args.timeout,
+                ))
+            result = organize_tenhou_inbox(
+                args.root, Path(args.database), player_id=args.player_id,
+                converter_executable=args.converter_exe, analysis_config=config,
+                model_tag=args.model_tag, output_dir=args.output_dir,
+                retry_failed=args.retry_failed, timeout=args.timeout,
+            )
+            print(json.dumps({
+                "input_files": result.input_files,
+                "detected_games": result.detected_games,
+                "analyzed_games": result.analyzed_games,
+                "skipped_duplicates": result.skipped_duplicates,
+                "failures": result.failures,
+                "held": result.held,
+                "processed_moved": result.processed_moved,
+                "failed_moved": result.failed_moved,
+                "duplicate_removed": result.duplicate_removed,
+                "new_games": result.new_games,
+                "new_reviews": result.new_reviews,
+                "new_decisions": result.new_decisions,
+                "migrations": migrations,
+                "details": list(result.details),
+            }, ensure_ascii=False))
+            return 1 if result.failures or result.held else 0
         except (OSError, AnalyzerError, ValueError) as exc:
             print(f"error: {exc}")
             return 1

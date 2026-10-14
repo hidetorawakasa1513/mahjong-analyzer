@@ -678,7 +678,7 @@ Converter v0.2.3の監査済みソースと、mjai-reviewer 1.5.10の`convlog/sr
 
 ### `.mjlog`取り込み経路
 
-`mahjong-analyzer analyze-tenhou FILE_OR_DIR`を追加した。処理順は、gzip/XML検証、1半荘・四人麻雀の構造確認、Converterのローカル実行、互換性補正、mjai-reviewerの`--no-review`変換、重複判定、未登録時だけ既存の`analyze_log`（mjai-reviewer + Mortal + importer）である。subprocessは` shell=False`の引数配列で起動し、Converterの設定保存先は出力ディレクトリ配下へ隔離する。
+`mahjong-analyzer analyze-tenhou FILE_OR_DIR`を追加した。処理順は、gzip/XML検証、1半荘・四人麻雀の構造確認、Converterのローカル実行、互換性補正、mjai-reviewerの`--no-review`変換、重複判定、未登録時だけ既存の`analyze_log`（mjai-reviewer + Mortal + importer）である。subprocessは`shell=False`の引数配列で起動し、Converterの設定保存先は出力ディレクトリ配下へ隔離する。
 
 重複判定はMortal起動前に行う。ゲームID、元`.mjlog` SHA-256、変換後MJAIの正規化SHA-256を補助的に照合し、座席、reviewerバージョン、温度、モデルタグ、Mortalレビューの正常保存済み状態を条件にする。同じゲームでも座席や解析条件が違えば別レビューとして扱える。ディレクトリ入力では各ファイルを独立に処理し、入力数、検出数、新規解析数、重複スキップ数、失敗数、登録判断数をJSONで表示する。空の/不正な入力や複数対局を含むファイルは安全側にエラーとする。
 
@@ -717,3 +717,74 @@ Converter v0.2.3の監査済みソースと、mjai-reviewer 1.5.10の`convlog/sr
 - `games`の旧行には旧実装由来の`source_game_id`が残る場合がある。既存データを削除・初期化せずに検出するため、現実装はMJAIハッシュをフォールバックに使用する。
 - 1つの`.mjlog`に複数半荘が含まれる形式、三人麻雀、未対応のルール表記は未対応として拒否する。
 - 新しい実牌譜での第2段階検証は未実施。ユーザーが新しいファイルを提供した後に実行する。
+
+## 16. 天鳳牌譜の自動整理・取り込みワークフロー（2026-10-14）
+
+### フォルダとCLI
+
+`data/raw/tenhou/`配下に次の3フォルダを作成する`organize-tenhou`コマンドを追加した。
+
+```text
+data/raw/tenhou/
+├── inbox/
+├── processed/
+└── failed/
+```
+
+通常は天鳳公式ページから手動保存した`.mjlog`を`inbox/`へ置き、既存のConverter、互換性アダプター、mjai-reviewer、Mortal、SQLite経路を次のコマンドで実行する。
+
+```sh
+.venv/bin/mahjong-analyzer organize-tenhou \
+  --root data/raw/tenhou --player-id 3 \
+  --database local_data/mahjong_analyzer.sqlite3 \
+  --converter-exe /path/to/mahjong-replay-converter \
+  --reviewer-exe /path/to/mjai-reviewer \
+  --mortal-exe /path/to/Mortal/mortal/mortal \
+  --mortal-cfg /path/to/Mortal/mortal/config.toml \
+  --python-path /path/to/Mortal/mortal \
+  --model-tag mortal4-b40c192-t26082106 \
+  --output-dir local_data/tenhou-analysis
+```
+
+### 整理の安全性
+
+- SQLite登録が成功するまで原本を`processed/`へ移動しない。
+- 移動は一時ファイルへコピーし、SHA-256を検証してから原本を除去する。
+- `processed/`に同名・同内容がある場合でも、SQLiteに同一条件の正常レビューがあることを確認してからinbox側コピーを除去する。
+- 同名・異内容は上書きせず、SHA-256先頭12文字を含む別名へ保存する。
+- 変換、解析、SQLite登録の失敗は原本を`failed/`へ移動し、`.error.json`へ理由とSHA-256を記録する。
+- 移動に失敗した場合は原本を保持し、`held`として報告する。
+- `--retry-failed`で`failed/`の原本を再試行できる。失敗した場合はfailedに残す。
+
+DB上のレビュー重複とファイル重複は分離して扱う。同一ゲームIDでも保存済みの`source_sha256`と異なる入力は自動スキップせず、上書きもしない。旧DB行で`source_sha256`が未設定の場合は、MJAIログの正規化SHA-256を照合できた場合だけ既存レビューとみなす。
+
+### 既存牌譜の移行
+
+既に解析済みだった天鳳実牌譜1件を、`--migrate-existing`で再解析せずに移行した。reviewerの事前変換、既存レビューとモデル・温度・座席の照合、SHA-256のバックフィルだけを行い、Mortalは起動していない。
+
+```sh
+.venv/bin/mahjong-analyzer organize-tenhou \
+  --root data/raw/tenhou \
+  --migrate-existing data/raw/tenhou/<existing>.mjlog \
+  --player-id 3 --database local_data/real-tenhou-20261014/mahjong_analyzer.sqlite3 \
+  --converter-exe /path/to/mahjong-replay-converter \
+  --reviewer-exe /path/to/mjai-reviewer \
+  --mortal-exe /path/to/Mortal/mortal/mortal \
+  --mortal-cfg /path/to/Mortal/mortal/config.toml \
+  --model-tag mortal4-b40c192-t26082106
+```
+
+結果は`processed/`への移動成功、元ファイルSHA-256の一致、games 1件・reviews 1件・decisions 136件の維持、`source_sha256`の記録であった。既存レビューや判断レコードは削除・再登録していない。個人牌譜のファイル名や内容は公開ドキュメントへ追加していない。
+
+### テスト
+
+- pytest: 30件成功。
+- 空のinboxによる3フォルダ自動作成: 成功。
+- 新規解析成功後のprocessed移動: 成功。
+- 登録済み同一SHA-256のMortal前スキップとinboxコピー整理: 成功。
+- 解析失敗時のfailed移動と理由ログ: 成功。
+- 同名・異内容の上書き防止: 成功。
+- 既存牌譜の再解析なし移行: 成功。
+- `git diff --check`: 成功。
+
+新しい実牌譜の取り込みはまだ実施していない。自動ダウンロード、スクレイピング、ログイン、認証情報取得も実施していない。

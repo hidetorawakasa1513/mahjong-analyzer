@@ -187,12 +187,16 @@ def _existing_review(
         """
         SELECT r.id, r.model_tag
         FROM reviews r JOIN games g ON g.id = r.game_id
-        WHERE (g.source_game_id = ? OR g.log_sha256 = ? OR g.source_sha256 = ?)
+        WHERE (
+            g.log_sha256 = ?
+            OR g.source_sha256 = ?
+            OR (g.source_sha256 IS NULL AND g.source_game_id = ?)
+        )
           AND r.player_id = ? AND lower(r.engine) = 'mortal'
           AND r.reviewer_version = ? AND r.temperature = ?
           AND r.model_tag = ?
         """,
-        (game_id, log_sha256, source_sha256, player_id, reviewer_version_value, temperature, model_tag),
+        (log_sha256, source_sha256, game_id, player_id, reviewer_version_value, temperature, model_tag),
     ).fetchall()
     return bool(rows)
 

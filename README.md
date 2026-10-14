@@ -112,6 +112,51 @@ export PATH="$PWD/.venv-mortal/bin:$PATH"
 
 Converter v0.2.3の暗槓表記だけは、mjai-reviewer 1.5.10の期待するマーカー位置と異なるため、解析用コピーに限って厳密に正規化します。未知の表記は拒否し、元の `.mjlog` とConverter原出力は変更しません。
 
+## 天鳳牌譜の通常運用（自動整理）
+
+通常は、次のフォルダを作成して運用します。
+
+```text
+data/raw/tenhou/
+├── inbox/       # 新しく手動ダウンロードしたファイルを置く
+├── processed/   # SQLite登録まで成功した原本
+└── failed/      # 失敗した原本と理由ログ
+```
+
+天鳳から手動ダウンロードした`.mjlog`を`inbox/`へ置き、次のコマンドを実行します。
+
+```bash
+.venv/bin/mahjong-analyzer organize-tenhou \
+  --root data/raw/tenhou \
+  --player-id 3 \
+  --database local_data/mahjong_analyzer.sqlite3 \
+  --converter-exe /path/to/mahjong-replay-converter \
+  --reviewer-exe /path/to/mjai-reviewer \
+  --mortal-exe /path/to/Mortal/mortal/mortal \
+  --mortal-cfg /path/to/Mortal/mortal/config.toml \
+  --python-path /path/to/Mortal/mortal \
+  --model-tag mortal4-b40c192-t26082106 \
+  --output-dir local_data/tenhou-analysis
+```
+
+登録済みの同一内容はSHA-256とSQLiteの正常レビューを確認してから解析せず整理します。同名でも内容が異なるファイルは上書きせず、SHA-256付きの別名にします。解析や登録に失敗したファイルは`failed/`へ移動し、`.error.json`に理由を記録します。移動に失敗した場合は元ファイルを保持して`held`として報告します。
+
+過去に解析済みで、現在`data/raw/tenhou/`直下にある原本を再解析せず移行する場合は、`--migrate-existing PATH`を指定します。この処理はreviewerの事前変換とSQLite照合だけを行い、Mortalを起動しません。
+
+```bash
+.venv/bin/mahjong-analyzer organize-tenhou \
+  --root data/raw/tenhou \
+  --migrate-existing data/raw/tenhou/old-game.mjlog \
+  --player-id 3 --database local_data/mahjong_analyzer.sqlite3 \
+  --converter-exe /path/to/mahjong-replay-converter \
+  --reviewer-exe /path/to/mjai-reviewer \
+  --mortal-exe /path/to/Mortal/mortal/mortal \
+  --mortal-cfg /path/to/Mortal/mortal/config.toml \
+  --model-tag mortal4-b40c192-t26082106
+```
+
+失敗後に再試行する場合は`--retry-failed`を追加します。自動ダウンロード、スクレイピング、ログイン、認証情報の取得は行いません。
+
 ## 今後の予定
 
 1. Mortalとmjai-reviewerの動作検証（完了・条件付き）
