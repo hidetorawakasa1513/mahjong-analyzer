@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import sqlite3
+import json
+from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import quote
 from typing import Any
@@ -9,6 +11,38 @@ from ..analytics import ContextFilters, aggregate_contexts
 from ..report import summary
 from ..review import get_review_scene
 from ..review_candidates import CandidateResult, list_review_candidates
+
+
+@dataclass(frozen=True)
+class DashboardPaths:
+    database: Path
+    review_root: Path
+    source_root: Path
+
+
+def load_dashboard_paths(config_path: Path, *, project_root: Path | None = None) -> DashboardPaths:
+    """Load local dashboard paths without exposing or interpreting other config values."""
+    root = (project_root or config_path.resolve().parent.parent).resolve()
+    defaults = {
+        "database": "local_data/mahjong_analyzer.sqlite3",
+        "review_root": "local_data",
+        "source_root": "data/raw/tenhou",
+    }
+    if config_path.is_file():
+        try:
+            payload = json.loads(config_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            raise ValueError(f"ローカル設定を読み込めません: {config_path}") from exc
+        values = payload.get("dashboard", {})
+        if not isinstance(values, dict):
+            raise ValueError("local_data/config.json の dashboard はオブジェクトで指定してください")
+        defaults.update({key: values[key] for key in defaults if isinstance(values.get(key), str)})
+
+    def resolve(value: str) -> Path:
+        path = Path(value).expanduser()
+        return path if path.is_absolute() else root / path
+
+    return DashboardPaths(*(resolve(defaults[key]) for key in ("database", "review_root", "source_root")))
 
 
 def connect_readonly(path: Path) -> sqlite3.Connection:
@@ -33,7 +67,7 @@ def home_data(connection: sqlite3.Connection, threshold: float = 0.05) -> dict[s
         "games": counts["games"], "decisions": counts["decisions"],
         "reviews": counts["reviews"], "summaries": summaries,
         "recent_games": [dict(row) for row in connection.execute(
-            "SELECT id, played_at, game_type FROM games "
+            "SELECT id, source_game_id, played_at, game_type FROM games "
             "ORDER BY played_at IS NULL, played_at DESC, id DESC LIMIT 10"
         )],
     }

@@ -37,8 +37,11 @@ class ContextFilters:
     honba: int | None = None
     is_dealer: bool | None = None
     model_tag: str | None = None
+    model_identity: str | None = None
+    grp_identity: str | None = None
     reviewer_version: str | None = None
     temperature: float | None = None
+    rule_context: str | None = None
     is_equal: bool | None = None
     probability_min: float | None = None
     probability_max: float | None = None
@@ -196,6 +199,8 @@ def _where(filters: ContextFilters) -> tuple[list[str], list[Any]]:
         ("c.action_category", filters.action_category, "="),
         ("c.bakaze", filters.bakaze, "="),
         ("r.model_tag", filters.model_tag, "="),
+        ("r.model_identity", filters.model_identity, "="),
+        ("r.grp_identity", filters.grp_identity, "="),
         ("r.reviewer_version", filters.reviewer_version, "="),
         ("r.temperature", filters.temperature, "="),
         ("d.actual_probability", filters.probability_min, ">="),
@@ -204,6 +209,11 @@ def _where(filters: ContextFilters) -> tuple[list[str], list[Any]]:
         if value is not None:
             clauses.append(f"{column} {operator} ?")
             params.append(value)
+    if filters.rule_context == "":
+        clauses.append("g.rule_context IS NULL")
+    elif filters.rule_context is not None:
+        clauses.append("g.rule_context = ?")
+        params.append(filters.rule_context)
     if filters.is_dealer is not None:
         clauses.append("c.is_dealer = ?")
         params.append(int(filters.is_dealer))

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from mahjong_analyzer.dashboard.data import connect_readonly, home_data
+from mahjong_analyzer.dashboard.data import connect_readonly, home_data, load_dashboard_paths
 from mahjong_analyzer.schema import connect, initialize
 
 
@@ -41,3 +41,26 @@ def test_home_data_reads_empty_database(tmp_path: Path) -> None:
     assert value["decisions"] == 0
     assert value["summaries"] == []
     readonly.close()
+
+
+def test_dashboard_paths_resolve_relative_to_project_root(tmp_path: Path) -> None:
+    config_path = tmp_path / "local_data" / "config.json"
+    config_path.parent.mkdir()
+    config_path.write_text(
+        '{"tenhou": {"account_id": "hidden", "player_name": "hidden"}, '
+        '"dashboard": {"database": "local_data/db.sqlite3", '
+        '"review_root": "local_data/reviews", "source_root": "data/raw/tenhou"}}',
+        encoding="utf-8",
+    )
+    paths = load_dashboard_paths(config_path, project_root=tmp_path)
+    assert paths.database == tmp_path / "local_data/db.sqlite3"
+    assert paths.review_root == tmp_path / "local_data/reviews"
+    assert paths.source_root == tmp_path / "data/raw/tenhou"
+
+
+def test_dashboard_paths_keep_defaults_when_dashboard_is_missing(tmp_path: Path) -> None:
+    config_path = tmp_path / "local_data" / "config.json"
+    config_path.parent.mkdir()
+    config_path.write_text('{"tenhou": {"account_id": "hidden"}}', encoding="utf-8")
+    paths = load_dashboard_paths(config_path, project_root=tmp_path)
+    assert paths.database == tmp_path / "local_data/mahjong_analyzer.sqlite3"

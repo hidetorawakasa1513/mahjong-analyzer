@@ -99,3 +99,12 @@ def test_boundaries_and_zero_denominator_are_explicit(tmp_path: Path) -> None:
     assert result["low_probability_denominator"] == 0
     assert result["low_recommendation_rate"] is None
     connection.close()
+
+
+def test_rule_context_can_select_null_without_mixing_conditions(tmp_path: Path) -> None:
+    connection = _database(tmp_path)
+    connection.execute("UPDATE games SET rule_context = ?", ('{"format":"test"}',))
+    connection.commit()
+    assert aggregate_contexts(connection, filters=ContextFilters(rule_context="")) == []
+    assert aggregate_contexts(connection, filters=ContextFilters(rule_context='{"format":"test"}'))[0]["decision_count"] == 2
+    connection.close()
