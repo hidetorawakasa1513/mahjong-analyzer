@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+import gzip
 
 import mahjong_analyzer.workflow as workflow
 from mahjong_analyzer.runner import AnalysisConfig
@@ -20,7 +21,12 @@ def _config(tmp_path: Path) -> AnalysisConfig:
 
 def _mjlog(path: Path, content: bytes = b"replay") -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(content)
+    xml = (
+        f'<mjloggm ver="2.3"><UN n0="A" n1="B" n2="C" n3="D"/>'
+        f'<GO type="9"/><TAIKYOKU oya="0"/><INIT seed="{content.hex()},0,0,0,0,11"/>'
+        '<RYUUKYOKU sc="0,0,0,0"/></mjloggm>'
+    ).encode()
+    path.write_bytes(gzip.compress(xml))
     return path
 
 
@@ -39,7 +45,7 @@ def test_empty_inbox_creates_workflow_directories(tmp_path: Path, monkeypatch: p
 
 
 def test_successful_replay_moves_to_processed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    source = _mjlog(tmp_path / "tenhou/inbox/game.mjlog")
+    source = _mjlog(tmp_path / "tenhou/inbox/2026101418gm-0009-0000-b87423b0.mjlog")
     monkeypatch.setattr(workflow, "reviewer_version", lambda *args, **kwargs: "1.5.10")
     counts = iter([(0, 0, 0), (1, 1, 4)])
     monkeypatch.setattr(workflow, "_db_counts", lambda *args, **kwargs: next(counts))
@@ -55,14 +61,14 @@ def test_successful_replay_moves_to_processed(tmp_path: Path, monkeypatch: pytes
     assert result.analyzed_games == 1
     assert result.processed_moved == 1
     assert not source.exists()
-    assert (tmp_path / "tenhou/processed/game.mjlog").read_bytes() == b"replay"
+    assert (tmp_path / "tenhou/processed/2026101418gm-0009-0000-b87423b0.mjlog").exists()
 
 
 def test_same_file_is_removed_only_after_registered_duplicate_check(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    source = _mjlog(tmp_path / "tenhou/inbox/game.mjlog")
-    processed = _mjlog(tmp_path / "tenhou/processed/game.mjlog")
+    source = _mjlog(tmp_path / "tenhou/inbox/2026101418gm-0009-0000-b87423b0.mjlog")
+    processed = _mjlog(tmp_path / "tenhou/processed/2026101418gm-0009-0000-b87423b0.mjlog")
     monkeypatch.setattr(workflow, "reviewer_version", lambda *args, **kwargs: "1.5.10")
     monkeypatch.setattr(workflow, "_successful_source_exists", lambda *args, **kwargs: True)
     result = workflow.organize_tenhou_inbox(
@@ -73,11 +79,11 @@ def test_same_file_is_removed_only_after_registered_duplicate_check(
     assert result.skipped_duplicates == 1
     assert result.duplicate_removed == 1
     assert not source.exists()
-    assert processed.read_bytes() == b"replay"
+    assert processed.exists()
 
 
 def test_failure_moves_replay_and_writes_reason(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    source = _mjlog(tmp_path / "tenhou/inbox/game.mjlog")
+    source = _mjlog(tmp_path / "tenhou/inbox/2026101418gm-0009-0000-b87423b0.mjlog")
     monkeypatch.setattr(workflow, "reviewer_version", lambda *args, **kwargs: "1.5.10")
     monkeypatch.setattr(workflow, "_db_counts", lambda *args, **kwargs: (0, 0, 0))
     monkeypatch.setattr(
@@ -90,9 +96,9 @@ def test_failure_moves_replay_and_writes_reason(tmp_path: Path, monkeypatch: pyt
         model_tag="model", output_dir=tmp_path / "output",
     )
     assert result.failures == 1
-    failed = tmp_path / "tenhou/failed/game.mjlog"
+    failed = tmp_path / "tenhou/failed/2026101418gm-0009-0000-b87423b0.mjlog"
     assert failed.exists()
-    assert "invalid replay" in (tmp_path / "tenhou/failed/game.mjlog.error.json").read_text()
+    assert "invalid replay" in (tmp_path / "tenhou/failed/2026101418gm-0009-0000-b87423b0.mjlog.error.json").read_text()
     assert not source.exists()
 
 

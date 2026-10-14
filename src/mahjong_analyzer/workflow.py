@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .errors import AnalyzerError
+from .identity import IdentityResolutionError, TenhouIdentityConfig, resolve_player_id
 from .schema import connect, initialize
 from .tenhou import (
     _existing_review,
@@ -148,8 +149,8 @@ def _copy_then_remove(source: Path, destination: Path, source_sha256: str) -> Pa
             temporary.unlink()
 
 
-def _write_failure_log(path: Path, *, source_sha256: str, reason: str) -> None:
-    log_path = path.with_name(f"{path.name}.error.json")
+def _write_failure_log(path: Path, *, source_sha256: str, reason: str, kind: str = "error") -> None:
+    log_path = path.with_name(f"{path.name}.{kind}.json")
     log_path.write_text(
         json.dumps(
             {"source": path.name, "source_sha256": source_sha256,
@@ -165,7 +166,7 @@ def _backfill_source_hash(
     *,
     log_sha256: str,
     source_sha256: str,
-    player_id: int,
+    player_id: int | None,
     reviewer_version_value: str,
     temperature: float,
     model_tag: str,
@@ -202,11 +203,15 @@ def _preflight_registered(
     model_tag: str,
     temperature: float,
     timeout: int,
+    identity_config: TenhouIdentityConfig | None = None,
 ) -> tuple[bool, str, str]:
     metadata = inspect_mjlog(path)
+    resolved_player_id = resolve_player_id(
+        metadata.player_names, identity_config, player_id, tw_player_id=metadata.tw_player_id,
+    )
     normalized = convert_mjlog(metadata, converter_executable, output_dir, timeout=timeout)
     _, log_sha = _mjai_conversion(
-        reviewer_executable, normalized, player_id, output_dir / "preflight", timeout=timeout,
+        reviewer_executable, normalized, resolved_player_id, output_dir / "preflight", timeout=timeout,
     )
     version = reviewer_version(reviewer_executable, timeout=timeout)
     connection = connect(database)
@@ -214,7 +219,7 @@ def _preflight_registered(
         initialize(connection)
         registered = _existing_review(
             connection, game_id=metadata.game_id, log_sha256=log_sha,
-            source_sha256=metadata.source_sha256, player_id=player_id,
+            source_sha256=metadata.source_sha256, player_id=resolved_player_id,
             reviewer_version_value=version, temperature=temperature, model_tag=model_tag,
         )
     finally:
@@ -222,11 +227,11 @@ def _preflight_registered(
     if registered:
         backfilled = _backfill_source_hash(
             database, log_sha256=log_sha, source_sha256=metadata.source_sha256,
-            player_id=player_id, reviewer_version_value=version,
+            player_id=resolved_player_id, reviewer_version_value=version,
             temperature=temperature, model_tag=model_tag,
         )
         if not backfilled and not _successful_source_exists(
-            database, metadata.source_sha256, player_id=player_id,
+            database, metadata.source_sha256, player_id=resolved_player_id,
             reviewer_version_value=version, temperature=temperature, model_tag=model_tag,
         ):
             registered = False
@@ -238,13 +243,14 @@ def migrate_existing_tenhou(
     root: Path,
     database: Path,
     *,
-    player_id: int,
+    player_id: int | None,
     converter_executable: Path,
     reviewer_executable: Path,
     output_dir: Path,
     model_tag: str,
     temperature: float,
     timeout: int,
+    identity_config: TenhouIdentityConfig | None = None,
 ) -> dict[str, object]:
     """Move an already-reviewed local replay without starting Mortal."""
     _, processed, _ = ensure_tenhou_directories(root)
@@ -252,7 +258,7 @@ def migrate_existing_tenhou(
     registered, _, _ = _preflight_registered(
         source, database, player_id=player_id, converter_executable=converter_executable,
         reviewer_executable=reviewer_executable, output_dir=output_dir, model_tag=model_tag,
-        temperature=temperature, timeout=timeout,
+        temperature=temperature, timeout=timeout, identity_config=identity_config,
     )
     if not registered:
         return {"status": "held", "path": str(source), "reason": "no matching successful review"}
@@ -265,13 +271,14 @@ def organize_tenhou_inbox(
     root: Path,
     database: Path,
     *,
-    player_id: int,
+    player_id: int | None,
     converter_executable: Path,
     analysis_config: AnalysisConfig,
     model_tag: str,
     output_dir: Path,
     retry_failed: bool = False,
     timeout: int = 1800,
+    identity_config: TenhouIdentityConfig | None = None,
 ) -> WorkflowResult:
     inbox, processed, failed = ensure_tenhou_directories(root)
     paths = _replay_files(inbox)
@@ -284,10 +291,16 @@ def organize_tenhou_inbox(
     version = reviewer_version(analysis_config.reviewer_executable, timeout=timeout)
     for path in paths:
         try:
+            metadata = inspect_mjlog(path)
+            resolved_player_id = resolve_player_id(
+                metadata.player_names, identity_config, player_id,
+                tw_player_id=metadata.tw_player_id,
+            )
+            counts["detected"] += 1
             source_sha = _sha256(path)
             existing = _processed_copy(processed, source_sha)
             if existing and _successful_source_exists(
-                database, source_sha, player_id=player_id, reviewer_version_value=version,
+                database, source_sha, player_id=resolved_player_id, reviewer_version_value=version,
                 temperature=analysis_config.temperature, model_tag=model_tag,
             ):
                 path.unlink()
@@ -299,10 +312,8 @@ def organize_tenhou_inbox(
             result = analyze_tenhou_path(
                 path, database, player_id, converter_executable=converter_executable,
                 analysis_config=analysis_config, output_dir=output_dir, model_tag=model_tag,
-                timeout=timeout,
+                timeout=timeout, identity_config=identity_config,
             )
-            if result.detected_games:
-                counts["detected"] += result.detected_games
             if result.analyzed_games:
                 counts["analyzed"] += result.analyzed_games
             if result.skipped_duplicates:
@@ -318,6 +329,18 @@ def organize_tenhou_inbox(
             counts["processed"] += 1
             details.append({"path": str(path), "status": "analyzed" if result.analyzed_games else "duplicate",
                             "processed": str(destination), "errors": list(result.errors)})
+        except IdentityResolutionError as exc:
+            counts["held"] += 1
+            source_sha = _sha256(path) if path.exists() else "unknown"
+            try:
+                destination = _destination(failed, path, source_sha)
+                _copy_then_remove(path, destination, source_sha)
+                _write_failure_log(destination, source_sha256=source_sha, reason=str(exc), kind="hold")
+                counts["failed_moved"] += 1
+                details.append({"path": str(path), "status": "held", "failed": str(destination), "reason": str(exc)})
+            except Exception as move_exc:
+                details.append({"path": str(path), "status": "held", "error": str(exc),
+                                "move_error": str(move_exc)})
         except Exception as exc:  # keep processing independent inbox files
             counts["failures"] += 1
             source_sha = _sha256(path) if path.exists() else "unknown"

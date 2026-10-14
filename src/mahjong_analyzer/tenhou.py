@@ -9,9 +9,11 @@ import subprocess
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import unquote
 
 from .compat import normalize_tenhou6_payload
 from .errors import AnalyzerError, ValidationError
+from .identity import TenhouIdentityConfig, resolve_player_id
 from .importer import _canonical
 from .runner import AnalysisConfig, AnalysisResult, analyze_log
 from .schema import connect, initialize
@@ -30,6 +32,8 @@ class TenhouReplayMetadata:
     rule_context: str
     round_count: int
     result_count: int
+    player_names: tuple[str, ...]
+    tw_player_id: int | None
 
 
 @dataclass(frozen=True)
@@ -44,6 +48,7 @@ class TenhouBatchResult:
 
 
 _GAME_ID = re.compile(r"(?P<id>\d{10}gm-\d{4}-\d{4}-[0-9a-fA-F]+)")
+_TW = re.compile(r"(?:^|[&_])tw(?:=)?(?P<value>[^&_.]+)")
 
 
 def _read_xml(path: Path) -> tuple[bytes, ET.Element]:
@@ -77,6 +82,20 @@ def inspect_mjlog(path: Path, *, game_id: str | None = None) -> TenhouReplayMeta
         sort_keys=True,
         separators=(",", ":"),
     )
+    un = root.find("UN")
+    if un is None:
+        raise TenhouImportError("mjlog does not contain player information")
+    raw_names = [un.attrib.get(f"n{index}") for index in range(4)]
+    if any(not isinstance(name, str) or not name for name in raw_names):
+        raise TenhouImportError("mjlog does not contain four player names")
+    player_names = tuple(unquote(name) for name in raw_names if name is not None)
+    tw_match = _TW.search(path.name)
+    tw_player_id: int | None = None
+    if tw_match:
+        value = tw_match.group("value")
+        if value not in {"0", "1", "2", "3"}:
+            raise ValidationError("filename tw view must be a seat number from 0 to 3")
+        tw_player_id = int(value)
     return TenhouReplayMetadata(
         path=path,
         game_id=discovered,
@@ -85,6 +104,8 @@ def inspect_mjlog(path: Path, *, game_id: str | None = None) -> TenhouReplayMeta
         rule_context=rule_context,
         round_count=len(rounds),
         result_count=len(results),
+        player_names=player_names,
+        tw_player_id=tw_player_id,
     )
 
 
@@ -212,7 +233,7 @@ def _files(path: Path) -> list[Path]:
 def analyze_tenhou_path(
     input_path: Path,
     database_path: Path,
-    player_id: int,
+    player_id: int | None,
     *,
     converter_executable: Path,
     analysis_config: AnalysisConfig,
@@ -220,8 +241,9 @@ def analyze_tenhou_path(
     model_tag: str,
     game_id: str | None = None,
     timeout: int = 1800,
+    identity_config: TenhouIdentityConfig | None = None,
 ) -> TenhouBatchResult:
-    if not 0 <= player_id <= 3:
+    if player_id is not None and not 0 <= player_id <= 3:
         raise ValidationError("--player-id must be between 0 and 3")
     paths = _files(input_path)
     if input_path.is_dir() and game_id is not None:
@@ -236,21 +258,25 @@ def analyze_tenhou_path(
             try:
                 metadata = inspect_mjlog(path, game_id=game_id)
                 detected += 1
+                resolved_player_id = resolve_player_id(
+                    metadata.player_names, identity_config, player_id,
+                    tw_player_id=metadata.tw_player_id,
+                )
                 normalized_path = convert_mjlog(metadata, converter_executable, output_dir, timeout=timeout)
                 _, log_sha = _mjai_conversion(
-                    analysis_config.reviewer_executable, normalized_path, player_id,
+                    analysis_config.reviewer_executable, normalized_path, resolved_player_id,
                     output_dir / "preflight", timeout=timeout,
                 )
                 if _existing_review(
                     connection, game_id=metadata.game_id, log_sha256=log_sha,
-                    source_sha256=metadata.source_sha256, player_id=player_id,
+                    source_sha256=metadata.source_sha256, player_id=resolved_player_id,
                     reviewer_version_value=version, temperature=analysis_config.temperature,
                     model_tag=model_tag,
                 ):
                     skipped += 1
                     continue
                 result: AnalysisResult = analyze_log(
-                    normalized_path, database_path, player_id, analysis_config,
+                    normalized_path, database_path, resolved_player_id, analysis_config,
                     game_id=metadata.game_id, game_type=metadata.game_type,
                     rule_context=metadata.rule_context, source_sha256=metadata.source_sha256,
                 )

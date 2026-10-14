@@ -6,6 +6,7 @@ import sqlite3
 from pathlib import Path
 
 from .errors import AnalyzerError
+from .identity import load_tenhou_identity
 from .importer import ImportMetadata, import_file
 from .report import format_summary, list_games, show_game, summary
 from .runner import AnalysisConfig, analyze_log
@@ -72,7 +73,8 @@ def build_parser() -> argparse.ArgumentParser:
     analyze.add_argument("--rule-context")
     tenhou = sub.add_parser("analyze-tenhou", help="Convert local Tenhou mjlog files, review, and import them")
     tenhou.add_argument("path", type=Path)
-    tenhou.add_argument("--player-id", type=int, required=True)
+    tenhou.add_argument("--player-id", type=int)
+    tenhou.add_argument("--config", type=Path, default=Path("local_data/config.json"))
     tenhou.add_argument("--database", default="local_data/mahjong_analyzer.sqlite3")
     tenhou.add_argument("--converter-exe", type=Path, required=True)
     tenhou.add_argument("--reviewer-exe", type=Path, required=True)
@@ -87,7 +89,8 @@ def build_parser() -> argparse.ArgumentParser:
     organize = sub.add_parser("organize-tenhou", help="Process the Tenhou inbox and organize source files")
     organize.add_argument("--root", type=Path, default=Path("data/raw/tenhou"))
     organize.add_argument("--database", default="local_data/mahjong_analyzer.sqlite3")
-    organize.add_argument("--player-id", type=int, required=True)
+    organize.add_argument("--player-id", type=int)
+    organize.add_argument("--config", type=Path, default=Path("local_data/config.json"))
     organize.add_argument("--converter-exe", type=Path, required=True)
     organize.add_argument("--reviewer-exe", type=Path, required=True)
     organize.add_argument("--mortal-exe", type=Path, required=True)
@@ -186,6 +189,7 @@ def main(argv: list[str] | None = None) -> int:
             return 1
     if args.command == "analyze-tenhou":
         try:
+            identity_config = load_tenhou_identity(args.config) if args.config.exists() else None
             result = analyze_tenhou_path(
                 args.path,
                 Path(args.database),
@@ -204,6 +208,7 @@ def main(argv: list[str] | None = None) -> int:
                 model_tag=args.model_tag,
                 game_id=args.game_id,
                 timeout=args.timeout,
+                identity_config=identity_config,
             )
             print(json.dumps({
                 "input_files": result.input_files,
@@ -220,6 +225,7 @@ def main(argv: list[str] | None = None) -> int:
             return 1
     if args.command == "organize-tenhou":
         try:
+            identity_config = load_tenhou_identity(args.config) if args.config.exists() else None
             config = AnalysisConfig(
                 reviewer_executable=args.reviewer_exe,
                 mortal_executable=args.mortal_exe,
@@ -237,12 +243,14 @@ def main(argv: list[str] | None = None) -> int:
                     reviewer_executable=args.reviewer_exe,
                     output_dir=args.output_dir, model_tag=args.model_tag,
                     temperature=args.temperature, timeout=args.timeout,
+                    identity_config=identity_config,
                 ))
             result = organize_tenhou_inbox(
                 args.root, Path(args.database), player_id=args.player_id,
                 converter_executable=args.converter_exe, analysis_config=config,
                 model_tag=args.model_tag, output_dir=args.output_dir,
                 retry_failed=args.retry_failed, timeout=args.timeout,
+                identity_config=identity_config,
             )
             print(json.dumps({
                 "input_files": result.input_files,
@@ -257,6 +265,10 @@ def main(argv: list[str] | None = None) -> int:
                 "new_games": result.new_games,
                 "new_reviews": result.new_reviews,
                 "new_decisions": result.new_decisions,
+                "db_registered_games": result.new_games,
+                "db_registered_reviews": result.new_reviews,
+                "db_registered_decisions": result.new_decisions,
+                "duplicate_files": result.duplicate_removed,
                 "migrations": migrations,
                 "details": list(result.details),
             }, ensure_ascii=False))

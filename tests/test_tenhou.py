@@ -17,7 +17,8 @@ from test_phase1 import payload
 
 def _mjlog(path: Path) -> Path:
     xml = (
-        '<mjloggm ver="2.3"><GO type="9"/><TAIKYOKU oya="0"/>'
+        '<mjloggm ver="2.3"><UN n0="A" n1="B" n2="C" n3="D"/>'
+        '<GO type="9"/><TAIKYOKU oya="0"/>'
         '<INIT seed="0,0,0,0,0,11" ten="250,250,250,250"/>'
         '<RYUUKYOKU sc="0,0,0,0"/></mjloggm>'
     ).encode()
@@ -141,3 +142,9 @@ def test_same_game_id_with_different_source_hash_is_not_skipped(tmp_path: Path) 
         )
     finally:
         connection.close()
+
+
+def test_invalid_tw_view_is_rejected(tmp_path: Path) -> None:
+    path = _mjlog(tmp_path / "2026101418gm-0009-0000-b87423b0&tw=4.mjlog")
+    with pytest.raises(AnalyzerError, match="tw view"):
+        tenhou.inspect_mjlog(path)

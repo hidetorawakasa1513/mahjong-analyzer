@@ -50,6 +50,7 @@ XML/gzip validation → Mahjong-Replay-Converter → compatibility adapter
 - `mahjong_analyzer.compat`: strict Tenhou/6 action validation and the Converter v0.2.3 concealed-kan marker normalization.
 - `mahjong_analyzer.tenhou`: local `.mjlog` inspection, conversion, preflight duplicate detection, batch counts, and reuse of `runner`.
 - `mahjong_analyzer.workflow`: inbox processing, hash-verified organization, failure sidecars, retry handling, and reviewed-file migration.
+- `mahjong_analyzer.identity`: local identity configuration, exact decoded player-name matching, manual-seat cross-checking, and `tw=` view validation.
 
 ## Data model
 
@@ -71,4 +72,4 @@ Summaries are grouped by engine, reviewer version, model tag/identity, GRP ident
 
 ## Database location
 
-The default is `local_data/mahjong_analyzer.sqlite3`, which is ignored by Git. Use `--database` to select another local path. `analyze-log` writes generated MJAI and review JSON to `local_data/analysis` by default; `analyze-tenhou` writes converter output, normalized Tenhou/6 JSON, preflight MJAI, review MJAI, and review JSON below `local_data/tenhou-analysis` by default. Use `--output-dir` to select another ignored local path. Input `.mjlog`, Tenhou/6, and review JSON files are read-only. A Tenhou duplicate requires matching game/source-log identity, seat, reviewer version, temperature, and model tag for a successfully stored Mortal review.
+The default is `local_data/mahjong_analyzer.sqlite3`, which is ignored by Git. Use `--database` to select another local path. `local_data/config.json` is also ignored by Git and stores the local Tenhou account identifier and player name. `analyze-log` writes generated MJAI and review JSON to `local_data/analysis` by default; `analyze-tenhou` writes converter output, normalized Tenhou/6 JSON, preflight MJAI, review MJAI, and review JSON below `local_data/tenhou-analysis` by default. Use `--output-dir` to select another ignored local path. Input `.mjlog`, Tenhou/6, and review JSON files are read-only. A Tenhou duplicate requires matching game/source-log identity, resolved seat, reviewer version, temperature, and model tag for a successfully stored Mortal review.

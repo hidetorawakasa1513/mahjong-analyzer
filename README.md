@@ -97,7 +97,7 @@ AI一致率と低推奨行動率は評価条件ごとに集計されます。低
 ```bash
 export PATH="$PWD/.venv-mortal/bin:$PATH"
 .venv/bin/mahjong-analyzer analyze-tenhou path/to/game.mjlog \
-  --player-id 3 \
+  --config local_data/config.json \
   --database local_data/mahjong_analyzer.sqlite3 \
   --converter-exe /path/to/mahjong-replay-converter \
   --reviewer-exe /path/to/mjai-reviewer \
@@ -123,12 +123,24 @@ data/raw/tenhou/
 └── failed/      # 失敗した原本と理由ログ
 ```
 
+### 初回設定と座席自動判定
+
+本人の天鳳IDとプレイヤー名は、Git管理外の`local_data/config.json`に保存します。天鳳IDはログインや牌譜取得には使用しません。プレイヤー名は`.mjlog`の`UN`要素をURLデコードし、4人の名前と完全一致する1席を本人席として判定します。ファイル名の`tw=0`や`_tw3`はビュー情報としてXML判定結果と照合し、不一致・欠落した本人名・複数一致はMortalを起動せず保留します。
+
+設定の存在だけを確認する場合は、ファイル内容を標準出力へ表示せず次のように確認できます。
+
+```bash
+test -s local_data/config.json && echo "Tenhou local identity config exists"
+```
+
+通常運用では`--player-id`を指定せず、`--config`の設定から座席を自動判定します。`--player-id`を明示した場合も、設定・XMLの本人席と一致しなければ処理を停止します。
+
 天鳳から手動ダウンロードした`.mjlog`を`inbox/`へ置き、次のコマンドを実行します。
 
 ```bash
 .venv/bin/mahjong-analyzer organize-tenhou \
   --root data/raw/tenhou \
-  --player-id 3 \
+  --config local_data/config.json \
   --database local_data/mahjong_analyzer.sqlite3 \
   --converter-exe /path/to/mahjong-replay-converter \
   --reviewer-exe /path/to/mjai-reviewer \
@@ -139,7 +151,7 @@ data/raw/tenhou/
   --output-dir local_data/tenhou-analysis
 ```
 
-登録済みの同一内容はSHA-256とSQLiteの正常レビューを確認してから解析せず整理します。同名でも内容が異なるファイルは上書きせず、SHA-256付きの別名にします。解析や登録に失敗したファイルは`failed/`へ移動し、`.error.json`に理由を記録します。移動に失敗した場合は元ファイルを保持して`held`として報告します。
+登録済みの同一内容は、本人席を確定した後にSHA-256とSQLiteの正常レビューを確認してから解析せず整理します。同名でも内容が異なるファイルは上書きせず、SHA-256付きの別名にします。解析や登録に失敗したファイルは`failed/`へ移動し、`.error.json`に理由を記録します。本人を特定できない保留は`.hold.json`に理由を記録し、通常の失敗と区別します。移動に失敗した場合は元ファイルを保持して`held`として報告します。
 
 過去に解析済みで、現在`data/raw/tenhou/`直下にある原本を再解析せず移行する場合は、`--migrate-existing PATH`を指定します。この処理はreviewerの事前変換とSQLite照合だけを行い、Mortalを起動しません。
 
@@ -147,7 +159,7 @@ data/raw/tenhou/
 .venv/bin/mahjong-analyzer organize-tenhou \
   --root data/raw/tenhou \
   --migrate-existing data/raw/tenhou/old-game.mjlog \
-  --player-id 3 --database local_data/mahjong_analyzer.sqlite3 \
+  --config local_data/config.json --database local_data/mahjong_analyzer.sqlite3 \
   --converter-exe /path/to/mahjong-replay-converter \
   --reviewer-exe /path/to/mjai-reviewer \
   --mortal-exe /path/to/Mortal/mortal/mortal \
