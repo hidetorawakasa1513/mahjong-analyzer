@@ -6,12 +6,22 @@ from mahjong_analyzer.table_view import compact_table_data, relative_seats, seat
 
 
 def test_relative_seats_keep_reviewed_player_at_bottom() -> None:
-    assert relative_seats(0).left == 1
+    assert relative_seats(0).left == 3
     assert relative_seats(0).top == 2
-    assert relative_seats(0).right == 3
-    assert relative_seats(3).left == 0
+    assert relative_seats(0).right == 1
+    assert relative_seats(3).left == 2
+    assert relative_seats(3).right == 0
     assert seat_label(3, 3) == "自分"
     assert seat_label(0, 3) == "下家"
+
+
+def test_all_absolute_seats_map_to_the_same_relative_positions() -> None:
+    for player_id in range(4):
+        seats = relative_seats(player_id)
+        assert seats.self_seat == player_id
+        assert seats.right == (player_id + 1) % 4  # 下家
+        assert seats.top == (player_id + 2) % 4  # 対面
+        assert seats.left == (player_id + 3) % 4  # 上家
 
 
 def test_relative_seats_reject_invalid_player() -> None:

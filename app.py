@@ -18,6 +18,7 @@ from mahjong_analyzer.errors import AnalyzerError
 from mahjong_analyzer.review import adjacent_decisions
 from mahjong_analyzer.table_view import compact_table_data, tile_ids_from_action
 from mahjong_analyzer.tile_assets import tile_asset
+from mahjong_analyzer.dashboard.table_renderer import render_evaluation_html, render_table_html, table_css
 
 
 DIMENSION_LABELS = {
@@ -427,69 +428,12 @@ def _render_melds(melds: list[dict[str, Any]], asset_root: Path, label: str, *, 
 
 
 def _render_table(scene: dict[str, Any], asset_root: Path) -> None:
-    data = compact_table_data(scene)
-    seats = data["seats"]
     st.subheader("麻雀卓")
-    st.markdown("""
-    <style>
-    .mahjong-table-note { background:#e8f2e9; border:1px solid #b5cdb8; border-radius:10px; padding:8px 12px; }
-    .mahjong-center { background:#f2eee3; border:1px solid #cfc5ae; border-radius:12px; padding:12px; text-align:center; }
-    </style>
-    """, unsafe_allow_html=True)
-    actual_ids = set(tile_ids_from_action(data["mortal"]["selected_action"]))
-    expected_ids = set(tile_ids_from_action(data["mortal"]["mortal_first_action"]))
-    with st.container(border=True):
-        st.markdown('<div class="mahjong-table-note">公開情報は判断時点まで。🔴本人の選択 / 🟣Mortal第一候補</div>', unsafe_allow_html=True)
-        _render_river(data["rivers"]["top"], asset_root, f"{data['seat_labels'][seats.top]}（上）")
-        left, center, right = st.columns([1.15, 1.7, 1.15])
-        with left:
-            _render_river(data["rivers"]["left"], asset_root, f"{data['seat_labels'][seats.left]}（左）")
-            _render_melds(data["melds"]["left"], asset_root, data["seat_labels"][seats.left])
-        with center:
-            st.markdown('<div class="mahjong-center">', unsafe_allow_html=True)
-            st.markdown(f"**{data['round']['bakaze']}場 {data['round']['kyoku']}局 {data['round']['honba']}本場**")
-            st.caption(f"{data['round']['turn_number']}巡目 / 残りツモ {data['round']['tiles_left']}枚 / {data['hand']['shanten']}向聴")
-            if data["scores"]:
-                st.write(" / ".join(f"{data['seat_labels'].get(seat, f'{seat}家')} {score:,}" for seat, score in enumerate(data["scores"])))
-            st.write("ドラ", " ".join(data["dora_markers"]) or "なし")
-            riichi = ", ".join(data["seat_labels"].get(seat, f"{seat}家") for seat in data["riichi_accepted_seats"]) or "なし"
-            st.write("リーチ", riichi)
-            st.markdown('</div>', unsafe_allow_html=True)
-        with right:
-            _render_river(data["rivers"]["right"], asset_root, f"{data['seat_labels'][seats.right]}（右）")
-            _render_melds(data["melds"]["right"], asset_root, data["seat_labels"][seats.right])
-        _render_river(data["rivers"]["self"], asset_root, "自分の河")
-        _render_melds(data["melds"]["self"], asset_root, "自分")
-        hand_ids = data["hand"]["tiles"] or []
-        _render_tiles(hand_ids, asset_root, label="自分の手牌", width=38,
-                      highlight_ids=actual_ids | expected_ids, actual_ids=actual_ids, expected_ids=expected_ids)
-        if data["hand"]["tsumo_tile"]:
-            _render_tiles([data["hand"]["tsumo_tile"]], asset_root, label="ツモ牌", width=38,
-                          highlight_ids=actual_ids | expected_ids, actual_ids=actual_ids, expected_ids=expected_ids)
+    st.html(f"<style>{table_css()}</style>{render_table_html(scene, asset_root)}")
 
 
 def _render_analysis_panel(connection: Any, scene: dict[str, Any], asset_root: Path) -> None:
-    mortal = scene["mortal"]
     st.subheader("Mortal評価")
-    _render_action(mortal["selected_action"], asset_root, "本人の選択")
-    _render_action(mortal["mortal_first_action"], asset_root, "Mortal第一候補")
-    probability = mortal["actual_probability"]
-    st.metric("本人の推奨確率", "不明" if probability is None else f"{probability:.2%}")
-    st.caption("推奨確率は行動選択確率であり、期待得点や放銃率ではありません。")
-    st.write(f"巡目 {scene['round']['turn_number']}巡 / 残りツモ {scene['round']['tiles_left']}枚 / {scene['hand']['shanten']}向聴 / 他家リーチ {len(scene['public']['riichi_accepted_seats'])}人")
-    candidates = [item for item in mortal["candidates"] if isinstance(item, dict)]
-    st.markdown("**候補行動の推奨確率**")
-    for candidate in candidates[:6]:
-        candidate_probability = candidate.get("prob")
-        if not isinstance(candidate_probability, (int, float)):
-            continue
-        value = max(0.0, min(1.0, float(candidate_probability)))
-        st.caption(_format_action(candidate.get("action")))
-        st.progress(value, text=f"{value:.2%}")
-    if len(candidates) > 6:
-        with st.expander("残りの候補行動"):
-            for candidate in candidates[6:]:
-                st.write(_format_action(candidate.get("action")), candidate.get("prob"))
     previous, following = adjacent_decisions(
         connection, scene["identity"]["decision_id"], disagreement_only=False
     )
@@ -509,6 +453,7 @@ def _render_analysis_panel(connection: Any, scene: dict[str, Any], asset_root: P
         st.session_state["selected_decision_id"] = following_bad; st.rerun()
     if st.button("復習候補一覧へ戻る", key="back-to-candidates"):
         st.session_state["navigation_target"] = "candidates"; st.rerun()
+    st.html(f"<style>{table_css()}</style>{render_evaluation_html(scene, asset_root)}")
 
     with st.expander("開発用の詳細JSON"):
         st.json({"identity": scene["identity"], "round": scene["round"], "hand": scene["hand"],

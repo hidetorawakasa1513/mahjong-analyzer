@@ -18,11 +18,12 @@ def relative_seats(player_id: int) -> RelativeSeats:
     """Return the four seats relative to the reviewed player.
 
     River order remains the source event order; only the seat placement is
-    rotated so the reviewed player is always at the bottom.
+    rotated so the reviewed player is always at the bottom.  In the
+    reviewer-facing view, shimo is on the right and kamicha is on the left.
     """
     if player_id not in range(4):
         raise ValueError(f"player_id must be 0..3: {player_id}")
-    return RelativeSeats(player_id, (player_id + 1) % 4, (player_id + 2) % 4, (player_id + 3) % 4)
+    return RelativeSeats(player_id, (player_id + 3) % 4, (player_id + 2) % 4, (player_id + 1) % 4)
 
 
 def seat_label(seat: int, self_seat: int) -> str:

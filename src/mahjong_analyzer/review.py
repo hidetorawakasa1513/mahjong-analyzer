@@ -76,7 +76,7 @@ def _public_snapshot(events: list[dict[str, Any]]) -> dict[str, Any]:
     riichi_pending: set[int] = set()
     riichi_accepted: set[int] = set()
     dora_markers: list[str] = []
-    for event in events:
+    for event_index, event in enumerate(events):
         event_type = event.get("type")
         if event_type == "start_kyoku":
             marker = event.get("dora_marker")
@@ -85,13 +85,25 @@ def _public_snapshot(events: list[dict[str, Any]]) -> dict[str, Any]:
         elif event_type == "dahai" and isinstance(event.get("actor"), int):
             actor = event["actor"]
             if 0 <= actor < 4:
-                rivers[actor].append({
+                item = {
                     "pai": event.get("pai"),
                     "tsumogiri": event.get("tsumogiri"),
-                })
+                    "event_index": event_index,
+                }
+                if actor in riichi_pending:
+                    item["riichi_declaration"] = True
+                rivers[actor].append(item)
         elif event_type in {"chi", "pon", "ankan", "kakan", "daiminkan"}:
             actor = event.get("actor")
             if isinstance(actor, int) and 0 <= actor < 4:
+                target = event.get("target")
+                if isinstance(target, int) and 0 <= target < 4:
+                    for discard in reversed(rivers[target]):
+                        if discard.get("pai") == event.get("pai") and not discard.get("claimed"):
+                            discard["claimed"] = True
+                            discard["claimed_by"] = actor
+                            discard["claimed_type"] = event_type
+                            break
                 melds[actor].append({
                     key: event[key] for key in ("type", "actor", "target", "pai", "consumed") if key in event
                 })
@@ -108,6 +120,7 @@ def _public_snapshot(events: list[dict[str, Any]]) -> dict[str, Any]:
         "riichi_pending_seats": sorted(riichi_pending),
         "riichi_accepted_seats": sorted(riichi_accepted),
         "dora_markers": dora_markers,
+        "riichi_pending_seats": sorted(riichi_pending),
         "event_count": len(events),
     }
 
@@ -258,7 +271,7 @@ def get_review_scene(
         "round": {
             "bakaze": context["bakaze"], "kyoku": context["kyoku"], "honba": context["honba"],
             "oya": oya, "self_wind": self_wind, "turn_number": context["turn_number"],
-            "tiles_left": entry.get("tiles_left"),
+            "tiles_left": entry.get("tiles_left"), "kyotaku": start_event.get("kyotaku"),
         },
         "hand": {
             "tiles": hand, "tsumo_tile": entry.get("tile"), "fuuros": fuuros,

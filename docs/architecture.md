@@ -53,6 +53,7 @@ XML/gzip validation → Mahjong-Replay-Converter → compatibility adapter
 - `mahjong_analyzer.identity`: local identity configuration, exact decoded player-name matching, manual-seat cross-checking, and `tw=` view validation.
 - `mahjong_analyzer.analytics`: read-only context aggregation, parameterized multi-condition decision search, configurable turn/score buckets, and structured JSON results for future UI reuse.
 - `mahjong_analyzer.review`: decision-id based scene retrieval, review JSON/MJAI event replay, public-information reconstruction, and Mortal candidate packaging for future review UI.
+- `mahjong_analyzer.dashboard.table_renderer`: decision-time scene to safe local-image HTML conversion. It does not access SQLite, embeds only allow-listed tile assets, and keeps navigation in Streamlit-native controls.
 - `mahjong_analyzer.review_candidates`: reusable candidate listing with shared context filters, stable sorting, pagination, and review-scene identifiers.
 - `app.py` / `mahjong_analyzer.dashboard.data`: optional Streamlit read-only dashboard adapter. It delegates all calculations, candidate selection, and scene reconstruction to existing APIs. Local `dashboard` paths are loaded from the ignored config file; account fields are not read by the dashboard.
 

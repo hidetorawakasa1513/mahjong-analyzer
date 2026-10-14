@@ -215,6 +215,18 @@ test -s local_data/config.json && echo "Tenhou local identity config exists"
 
 `search-decisions`で得た`decision_id`から、判断直前の手牌・副露、公開河、公開副露、成立済みリーチ、ドラ表示牌、点数、Mortal候補を取得できます。レビューJSONのMJAIイベント列を再走査し、通常行動はイベント処理前、`none`は参照した他家打牌を公開した後の状態として返します。
 
+## Phase 3-C②-B: 実データ卓面UI
+
+Streamlitの局面詳細は、既存の`get_review_scene()`で復元した判断時点の公開情報を、`dashboard.table_renderer`のViewModel／HTML描画層へ渡して表示します。SQLiteは`mode=ro`・`query_only`で開き、卓面レンダラーはSQLiteへ直接アクセスしません。
+
+```bash
+.venv/bin/streamlit run app.py --server.address 127.0.0.1
+```
+
+画面では本人を下側に固定し、下家を右、対面を上、上家を左へ配置します。河はイベント順を保持した6列グリッドを座席方向へ回転し、リーチ宣言牌・ツモ切り・鳴かれた捨て牌はMJAIイベントから確認できる場合だけ表示します。副露、本人の手牌・ツモ牌、赤5、ドラ、点数、リーチ状態を判断時点までの情報として表示します。リーチ宣言牌や鳴き元が復元できない場合は推測で補いません。
+
+Mortalの候補は実際のレビューJSONの確率を降順で表示し、本人の選択は赤、第一候補は紫で区別します。小さい確率にはraw値も表示します。これは行動選択確率であり、期待得点・放銃率・和了率・期待順位ではありません。前後判断・前後AI不一致・候補一覧への戻る操作はStreamlitネイティブのボタンで実行します。
+
 ```bash
 .venv/bin/mahjong-analyzer show-decision \
   --database local_data/real-tenhou-20261014/mahjong_analyzer.sqlite3 \

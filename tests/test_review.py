@@ -47,7 +47,7 @@ def test_review_scene_exposes_reference_discard_for_none(tmp_path: Path) -> None
     assert scene["mortal"]["action_category"] == "none"
     assert scene["none_judgment"]["meaning"].startswith("unknown")
     assert scene["public"]["decision_phase"] == "after_reference_event"
-    assert scene["public"]["rivers"][1] == [{"pai": "5m", "tsumogiri": False}]
+    assert scene["public"]["rivers"][1] == [{"pai": "5m", "tsumogiri": False, "event_index": 4}]
     assert scene["none_judgment"]["reference_event_is_exposed"] is True
     connection.close()
 
