@@ -86,8 +86,9 @@ def test_evaluation_shows_three_candidates_and_collapses_the_rest() -> None:
 def test_table_layout_keeps_player_zones_and_hand_meld_gap_explicit() -> None:
     css = table_css()
     assert "--hand-meld-gap" in css
-    assert "aspect-ratio:1 / 1" in css
-    assert "ma-river-rows-4" in css
+    assert "--table-width" in css and "--table-height" in css
+    assert "--kawa-tile-width" in css and "--kawa-tile-height" in css
+    assert "--kawa-block-width" in css and "--kawa-block-height" in css
     assert ".ma-river-top" in css and ".ma-river-bottom" in css
     assert ".ma-melds-top" in css and ".ma-melds-bottom" in css
     assert ".ma-center" in css and ".ma-legend" in css

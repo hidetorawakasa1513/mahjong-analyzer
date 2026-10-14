@@ -95,7 +95,7 @@ def _river(items: list[dict[str, Any]], asset_root: Path, position: str) -> str:
         if item.get("claimed") is True:
             classes.append("ma-claimed")
         parts.append(_img(tile_id, asset_root, " ".join(classes)))
-    rows = max(1, min(4, (len(parts) + 5) // 6))
+    rows = max(1, min(3, (len(parts) + 5) // 6))
     return f'<div class="ma-river ma-river-area ma-river-rows-{rows} ma-river-{position}" aria-label="{position}の河">{"".join(parts)}</div>'
 
 
