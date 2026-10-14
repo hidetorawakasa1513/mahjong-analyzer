@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from mahjong_analyzer.table_view import compact_table_data, relative_seats, seat_label
+from mahjong_analyzer.table_view import compact_table_data, relative_seats, seat_label, sort_hand_tiles, split_hand_and_tsumo
 
 
 def test_relative_seats_keep_reviewed_player_at_bottom() -> None:
@@ -42,3 +42,23 @@ def test_compact_table_data_does_not_include_private_hands() -> None:
     compact = compact_table_data(scene)
     assert "tehais" not in compact
     assert compact["hand"]["tiles"] == ["1m"]
+
+
+def test_sort_hand_tiles_groups_red_fives_with_their_suit() -> None:
+    tiles = ["C", "5sr", "4m", "5m", "6m", "5mr", "1p", "5p", "5pr", "E", "1m"]
+    assert sort_hand_tiles(tiles) == ["1m", "4m", "5m", "5mr", "6m", "1p", "5p", "5pr", "5sr", "E", "C"]
+
+
+def test_split_hand_and_tsumo_keeps_a_fixed_tsumo_slot() -> None:
+    concealed, tsumo, known = split_hand_and_tsumo(["4m", "5m", "5mr", "6m"], "5mr", show_tsumo=True)
+    assert concealed == ["4m", "5m", "6m"]
+    assert tsumo == "5mr"
+    assert known is True
+
+    concealed, tsumo, known = split_hand_and_tsumo(["4m", "5m"], "9p", show_tsumo=True)
+    assert concealed == ["4m", "5m"]
+    assert tsumo is None and known is False
+
+    concealed, tsumo, known = split_hand_and_tsumo(["4m", "5m"], "5m", show_tsumo=False)
+    assert concealed == ["4m", "5m"]
+    assert tsumo is None and known is False

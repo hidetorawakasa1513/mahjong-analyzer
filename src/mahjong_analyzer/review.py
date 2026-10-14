@@ -8,6 +8,7 @@ from typing import Any
 
 from .errors import ValidationError
 from .importer import ImportMetadata, normalize_review
+from .table_view import seat_label
 
 
 def _canonical(value: Any) -> str:
@@ -124,6 +125,43 @@ def _public_snapshot(events: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def _mark_call_target(public: dict[str, Any], action: dict[str, Any] | None, *, self_seat: int) -> dict[str, Any] | None:
+    """Mark only a confirmed call's source discard; never infer it for ``none``."""
+    if not isinstance(action, dict) or action.get("type") not in {"chi", "pon", "ankan", "kakan", "daiminkan"}:
+        return None
+    target = action.get("target")
+    pai = action.get("pai")
+    actor = action.get("actor")
+    if not isinstance(target, int) or not isinstance(pai, str) or not isinstance(actor, int):
+        return None
+    if not 0 <= target < 4:
+        return None
+    for discard in reversed(public["rivers"][target]):
+        if discard.get("pai") == pai and not discard.get("claimed"):
+            relative_label = seat_label(target, self_seat)
+            direction = {"下家": "右", "対面": "対面", "上家": "左"}.get(relative_label)
+            discard["call_target"] = True
+            discard["call_target_label"] = direction or relative_label
+            discard["call_target_actor"] = actor
+            return {"pai": pai, "target": target, "actor": actor, "direction": direction or relative_label,
+                    "event_index": discard.get("event_index")}
+    return None
+
+
+def _judgment_kind(action_category: Any) -> tuple[str, str]:
+    labels = {
+        "discard": ("draw_discard", "自摸後の打牌判断"),
+        "riichi": ("riichi", "リーチ判断"),
+        "chi": ("meld", "鳴き判断（チー）"),
+        "pon": ("meld", "鳴き判断（ポン）"),
+        "ankan": ("meld", "鳴き判断（暗槓）"),
+        "kakan": ("meld", "鳴き判断（加槓）"),
+        "daiminkan": ("meld", "鳴き判断（大明槓）"),
+        "hora": ("hora", "和了判断"),
+    }
+    return labels.get(action_category, ("unknown", "判断種別不明"))
+
+
 def _scores_before(events: list[dict[str, Any]], round_start: int, event_index: int) -> list[int] | None:
     start = events[round_start].get("scores")
     if not isinstance(start, list) or len(start) != 4 or not all(isinstance(value, int) for value in start):
@@ -231,6 +269,8 @@ def get_review_scene(
     hand = state.get("tehai") if isinstance(state.get("tehai"), list) else None
     fuuros = state.get("fuuros") if isinstance(state.get("fuuros"), list) else None
     action = entry.get("actual") if isinstance(entry.get("actual"), dict) else None
+    action_category = context["action_category"]
+    judgment_kind, judgment_label = _judgment_kind(action_category)
     expected = entry.get("expected") if isinstance(entry.get("expected"), dict) else None
     details = entry.get("details") if isinstance(entry.get("details"), list) else []
     candidates = [item for item in details if isinstance(item, dict)]
@@ -251,6 +291,10 @@ def get_review_scene(
     oya = start_event.get("oya")
     winds = ("E", "S", "W", "N")
     self_wind = winds[(player_id - oya) % 4] if isinstance(oya, int) and 0 <= oya < 4 else None
+    entry_tile = entry.get("tile") if isinstance(entry.get("tile"), str) else None
+    draw_candidate = action_category in {"discard", "riichi"}
+    draw_known = draw_candidate and isinstance(hand, list) and entry_tile in hand
+    call_target = _mark_call_target(public, action, self_seat=player_id)
     return {
         "status": status,
         "status_reasons": [] if status == "complete" else [
@@ -273,7 +317,9 @@ def get_review_scene(
             "tiles_left": entry.get("tiles_left"), "kyotaku": start_event.get("kyotaku"),
         },
         "hand": {
-            "tiles": hand, "tsumo_tile": entry.get("tile"), "fuuros": fuuros,
+            "tiles": hand, "tsumo_tile": entry_tile if draw_known else None, "entry_tile": entry_tile,
+            "tsumo_status": "known" if draw_known else "none" if not draw_candidate else "unknown",
+            "fuuros": fuuros,
             "shanten": context["shanten_before"], "self_riichi": context["self_riichi"],
         },
         "public": {
@@ -296,7 +342,12 @@ def get_review_scene(
             "selected_action": action, "mortal_first_action": expected,
             "is_equal": None if row["is_equal"] is None else bool(row["is_equal"]),
             "actual_probability": row["actual_probability"], "candidates": candidates,
-            "action_category": context["action_category"],
+            "action_category": action_category,
+        },
+        "judgment": {
+            "kind": judgment_kind, "label": judgment_label,
+            "call_target": call_target,
+            "draw_tile_known": draw_known,
         },
         "none_judgment": {
             "is_none": context["action_category"] == "none",

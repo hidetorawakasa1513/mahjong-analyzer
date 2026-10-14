@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from ..table_view import compact_table_data, tile_ids_from_action
+from ..table_view import split_hand_and_tsumo
 from ..tile_assets import tile_asset
 
 
@@ -94,7 +95,11 @@ def _river(items: list[dict[str, Any]], asset_root: Path, position: str) -> str:
             classes.append("ma-riichi")
         if item.get("claimed") is True:
             classes.append("ma-claimed")
-        parts.append(_img(tile_id, asset_root, " ".join(classes)))
+        title = None
+        if item.get("call_target") is True:
+            classes.append("ma-call-target")
+            title = f"鳴き対象牌 / 捨てた家: {item.get('call_target_label', '不明')}"
+        parts.append(_img(tile_id, asset_root, " ".join(classes), title))
     rows = max(1, min(3, (len(parts) + 5) // 6))
     return f'<div data-testid="river-{position}" class="ma-river ma-river-area ma-river-rows-{rows} ma-river-{position}" aria-label="{position}の河">{"".join(parts)}</div>'
 
@@ -160,14 +165,21 @@ def render_table_html(scene: dict[str, Any], asset_root: Path) -> str:
     mortal = data["mortal"]
     actual = _highlight_ids(mortal.get("selected_action"))
     expected = _highlight_ids(mortal.get("mortal_first_action"))
-    hand = data["hand"].get("tiles") or []
-    hand = sorted((value for value in hand if isinstance(value, str)), key=_tile_sort_key)
+    judgment = data.get("judgment") if isinstance(data.get("judgment"), dict) else {}
+    hand, tsumo, tsumo_known = split_hand_and_tsumo(
+        data["hand"].get("tiles"), data["hand"].get("tsumo_tile"),
+        show_tsumo=judgment.get("kind") in {"draw_discard", "riichi"}
+        or (not judgment and isinstance(data["hand"].get("tsumo_tile"), str)),
+    )
     hand_parts = []
     for tile_id in hand:
         hand_parts.append(_img(tile_id, asset_root, _highlight_class(tile_id, actual, expected)))
-    tsumo = data["hand"].get("tsumo_tile")
-    if isinstance(tsumo, str):
-        hand_parts.append(_img(tsumo, asset_root, f"ma-tsumo {_highlight_class(tsumo, actual, expected)}", f"ツモ牌 {tsumo}"))
+    if tsumo_known and isinstance(tsumo, str):
+        tsumo_part = _img(tsumo, asset_root, f"ma-tsumo {_highlight_class(tsumo, actual, expected)}", f"ツモ牌 {tsumo}")
+    elif data["hand"].get("tsumo_status") == "unknown":
+        tsumo_part = '<span class="ma-tsumo-slot ma-tsumo-unknown">ツモ牌<br>不明</span>'
+    else:
+        tsumo_part = '<span class="ma-tsumo-slot ma-tsumo-empty">ツモなし</span>'
     riichi = [data["seat_labels"].get(seat, f"{seat}家") for seat in data["riichi_accepted_seats"]]
     pending = [data["seat_labels"].get(seat, f"{seat}家") for seat in data.get("riichi_pending_seats", [])]
     riichi_text = ", ".join(riichi) if riichi else "なし"
@@ -189,18 +201,14 @@ def render_table_html(scene: dict[str, Any], asset_root: Path) -> str:
       <div data-testid="center-info" class="ma-center"><div><div class="ma-round-stat">{_text(round_data.get('bakaze'))}場 / {_text(round_data.get('kyoku'))}局 / {_text(round_data.get('honba'))}本場 / 供託 {kyotaku}</div>
         <h2>局面情報</h2><p>{_text(round_data.get('turn_number'))}巡目 / 残りツモ {tiles_left} / {_text(data['hand'].get('shanten'))}向聴</p>
         <div class="ma-dora">ドラ {dora or '<span class="ma-muted">未取得</span>'}</div><p>リーチ: {_text(riichi_text)}</p></div></div>
-      <div data-testid="hand-self" class="ma-hand ma-hand-area" aria-label="本人の手牌">{"".join(hand_parts)}</div>
+      <div data-testid="hand-self" class="ma-hand ma-hand-area" aria-label="本人の手牌"><div class="ma-hand-main">{"".join(hand_parts)}</div><div data-testid="tsumo-slot" class="ma-tsumo-slot-wrap">{tsumo_part}</div></div>
     </div><div data-testid="table-legend" class="ma-legend">赤枠：本人の選択　紫枠：Mortal第一候補　黄＋紫：一致　／　赤点：ツモ切り</div></div>'''
-
-
-def _tile_sort_key(tile_id: str) -> tuple[int, int, str]:
-    if len(tile_id) == 2 and tile_id[0].isdigit():
-        return ("mps".index(tile_id[1]), int(tile_id[0]), tile_id)
-    return (3, "ESWNPFC".find(tile_id), tile_id)
 
 
 def render_evaluation_html(scene: dict[str, Any], asset_root: Path) -> str:
     mortal = scene["mortal"]
+    judgment = scene.get("judgment") if isinstance(scene.get("judgment"), dict) else {}
+    call_target = judgment.get("call_target") if isinstance(judgment.get("call_target"), dict) else None
     actual_action = mortal.get("selected_action")
     expected_action = mortal.get("mortal_first_action")
     candidates = [item for item in mortal.get("candidates", []) if isinstance(item, dict)]
@@ -229,8 +237,9 @@ def render_evaluation_html(scene: dict[str, Any], asset_root: Path) -> str:
     else:
         difference = "第一候補との差 不明"
     conditions = f"{mortal.get('model_tag') or 'モデル不明'} / reviewer {mortal.get('reviewer_version') or '不明'} / 温度 {_text(mortal.get('temperature'))}"
+    target_note = f'<div class="ma-muted ma-call-target-note">鳴き対象牌：{_text(call_target.get("pai"))} / 捨てた家：{_text(call_target.get("direction"))}</div>' if call_target else ""
     return f'''<div class="ma-panel">
-      <div class="ma-card"><h3>局面情報</h3><div>{_text(scene['round'].get('bakaze'))}場 / {_text(scene['round'].get('kyoku'))}局 / {_text(scene['round'].get('turn_number'))}巡目 / {_text(scene['hand'].get('shanten'))}向聴</div><div class="ma-muted">他家リーチ {len(scene['public'].get('riichi_accepted_seats', []))}人 / 評価条件: {_text(conditions)}</div></div>
+      <div class="ma-card"><h3>局面情報</h3><div>{_text(scene['round'].get('bakaze'))}場 / {_text(scene['round'].get('kyoku'))}局 / {_text(scene['round'].get('turn_number'))}巡目 / {_text(scene['hand'].get('shanten'))}向聴</div><div class="ma-muted">判断種別：{_text(judgment.get('label'), '不明')} / 他家リーチ {len(scene['public'].get('riichi_accepted_seats', []))}人 / 評価条件: {_text(conditions)}</div>{target_note}</div>
       <div class="ma-card"><h3>本人の選択</h3><div class="ma-action-line"><strong class="ma-actual-text">{_text(_action_text(actual_action))}</strong><span class="ma-actual-text">本人</span></div><div class="ma-metric ma-actual-text">{_percent(mortal.get('actual_probability'))}</div><div class="ma-muted">行動選択確率 / {difference} <span class="ma-raw">raw={_raw_probability(mortal.get('actual_probability'))}</span></div></div>
       <div class="ma-card"><h3>Mortal第一候補</h3><div class="ma-action-line"><strong class="ma-mortal-text">{_text(_action_text(expected_action))}</strong><span class="ma-mortal-text">第一候補</span></div><div class="ma-muted">Q値や確率は期待得点・放銃率ではありません。</div></div>
       <div class="ma-card"><h3>候補行動（上位3件）</h3>{visible_bars}{more}</div>

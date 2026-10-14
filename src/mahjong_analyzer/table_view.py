@@ -43,6 +43,38 @@ def tile_ids_from_action(action: Any) -> list[str]:
     return result
 
 
+def tile_sort_key(tile_id: str) -> tuple[int, int, int, str]:
+    """Return the deterministic riichi-mahjong sorting key used by the view."""
+    if len(tile_id) >= 2 and tile_id[0].isdigit() and tile_id[1] in "mps":
+        return ("mps".index(tile_id[1]), int(tile_id[0]), int(tile_id.endswith("r")), tile_id)
+    honors = {value: index for index, value in enumerate("ESWNPFC")}
+    return (3, honors.get(tile_id, len(honors)), 0, tile_id)
+
+
+def sort_hand_tiles(tiles: Any) -> list[str]:
+    """Sort concealed tiles without losing red-five identifiers."""
+    if not isinstance(tiles, list):
+        return []
+    return sorted((tile for tile in tiles if isinstance(tile, str)), key=tile_sort_key)
+
+
+def split_hand_and_tsumo(tiles: Any, tsumo_tile: Any, *, show_tsumo: bool) -> tuple[list[str], str | None, bool]:
+    """Separate one known draw from the sorted concealed hand.
+
+    The event identifies the tile type, not a physical copy.  Removing one
+    equal tile keeps the visible count correct; if the type is absent, the
+    draw is reported as unknown instead of inventing a replacement.
+    """
+    sorted_tiles = sort_hand_tiles(tiles)
+    if not show_tsumo or not isinstance(tsumo_tile, str):
+        return sorted_tiles, None, False
+    try:
+        index = sorted_tiles.index(tsumo_tile)
+    except ValueError:
+        return sorted_tiles, None, False
+    return sorted_tiles[:index] + sorted_tiles[index + 1:], tsumo_tile, True
+
+
 def compact_table_data(scene: dict[str, Any]) -> dict[str, Any]:
     """Build only public/decision-time data needed by the table renderer."""
     self_seat = scene["identity"]["player_id"]
@@ -59,6 +91,7 @@ def compact_table_data(scene: dict[str, Any]) -> dict[str, Any]:
         "riichi_accepted_seats": public["riichi_accepted_seats"],
         "scores": scene["score"].get("scores_before") or [],
         "hand": scene["hand"],
+        "judgment": scene.get("judgment", {}),
         "round": scene["round"],
         "mortal": scene["mortal"],
     }

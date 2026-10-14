@@ -32,6 +32,9 @@ def test_review_scene_reconstructs_normal_action_and_public_state(tmp_path: Path
     assert scene["status"] == "complete"
     assert scene["identity"]["source_event_index"] == 3
     assert scene["hand"]["tiles"] == ["1m"] * 14
+    assert scene["hand"]["tsumo_tile"] == "1m"
+    assert scene["hand"]["tsumo_status"] == "known"
+    assert scene["judgment"]["kind"] == "draw_discard"
     assert scene["public"]["decision_phase"] == "before_action_event"
     assert scene["public"]["rivers"][0] == []
     assert scene["score"]["score_consistent_with_replay"] is True
@@ -49,6 +52,8 @@ def test_review_scene_exposes_reference_discard_for_none(tmp_path: Path) -> None
     assert scene["public"]["decision_phase"] == "after_reference_event"
     assert scene["public"]["rivers"][1] == [{"pai": "5m", "tsumogiri": False, "event_index": 4}]
     assert scene["none_judgment"]["reference_event_is_exposed"] is True
+    assert scene["hand"]["tsumo_tile"] is None
+    assert scene["judgment"]["kind"] == "unknown"
     connection.close()
 
 

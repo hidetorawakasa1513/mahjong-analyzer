@@ -11,7 +11,7 @@ def _scene(player_id: int = 0) -> dict:
         "identity": {"player_id": player_id},
         "round": {"bakaze": "E", "kyoku": 1, "honba": 0, "kyotaku": 1,
                    "turn_number": 4, "tiles_left": 60},
-        "hand": {"tiles": ["1m", "5mr", "7p"], "tsumo_tile": "5pr", "fuuros": [{"type": "pon", "actor": 0, "target": 1, "pai": "E", "consumed": ["E", "E"]}], "shanten": 1},
+        "hand": {"tiles": ["1m", "5mr", "7p", "5pr"], "tsumo_tile": "5pr", "fuuros": [{"type": "pon", "actor": 0, "target": 1, "pai": "E", "consumed": ["E", "E"]}], "shanten": 1},
         "public": {
             "rivers": [[{"pai": "1m", "tsumogiri": True, "riichi_declaration": True}], [], [], []],
             "melds": [[{"type": "pon", "actor": 0, "target": 1, "pai": "E", "consumed": ["E", "E"]}], [], [], []],
@@ -44,6 +44,24 @@ def test_renderer_shows_riichi_claimed_and_relative_data() -> None:
     assert "ma-riichi" in html
     assert "ma-meld-called" in html
     assert "5mr" in html and "5pr" in html
+
+
+def test_renderer_marks_confirmed_call_target_but_not_none_as_pass() -> None:
+    scene = _scene()
+    scene["judgment"] = {"kind": "meld", "label": "鳴き判断（ポン）",
+                         "call_target": {"pai": "E", "direction": "右"}}
+    scene["public"]["rivers"][1] = [{"pai": "E", "call_target": True, "call_target_label": "右"}]
+    html = render_table_html(scene, ASSETS) + render_evaluation_html(scene, ASSETS)
+    assert "ma-call-target" in html
+    assert "鳴き対象牌：E / 捨てた家：右" in html
+
+    scene["judgment"] = {"kind": "unknown", "label": "判断種別不明", "call_target": None}
+    scene["mortal"]["action_category"] = "none"
+    scene["public"]["rivers"][1][0].pop("call_target", None)
+    scene["public"]["rivers"][1][0].pop("call_target_label", None)
+    html = render_table_html(scene, ASSETS) + render_evaluation_html(scene, ASSETS)
+    assert "ma-call-target" not in html
+    assert "ツモなし" in html
 
 
 def test_called_tile_position_follows_source_direction() -> None:
