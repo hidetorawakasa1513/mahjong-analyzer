@@ -211,6 +211,21 @@ test -s local_data/config.json && echo "Tenhou local identity config exists"
 
 検索結果には`decision_id`、局・イベント位置、行動種類、本人の選択、Mortal第一候補、選択行動の推奨確率、評価条件を含めます。`--offset`と`--limit`で安定したページングができます。AI一致率と低推奨行動率は有効な値だけを分母にし、分母0は`null`です。Mortal Ratingは評価条件ごとのレビュー単位で返し、状況別・対局間で平均しません。同点順位は天鳳固有ルールが未確定のため`unknown`として扱います。`none`判断は保存された判断として集計しますが、見送り機会の新規推定は行いません。
 
+## Phase 2-C①: 復習用局面の取得
+
+`search-decisions`で得た`decision_id`から、判断直前の手牌・副露、公開河、公開副露、成立済みリーチ、ドラ表示牌、点数、Mortal候補を取得できます。レビューJSONのMJAIイベント列を再走査し、通常行動はイベント処理前、`none`は参照した他家打牌を公開した後の状態として返します。
+
+```bash
+.venv/bin/mahjong-analyzer show-decision \
+  --database local_data/real-tenhou-20261014/mahjong_analyzer.sqlite3 \
+  --decision-id 123 \
+  --review-root local_data \
+  --source-root data/raw/tenhou \
+  --format json
+```
+
+レビューJSONを自動探索せず明示する場合は`--review-json PATH`を指定できます。レビューJSONのSHA-256または安定識別子をSQLiteのレビュー記録と照合します。MJAIのイベント番号はレビューJSON内の`mjai_log`の0始まり番号であり、元XMLのノード番号ではありません。元`.mjlog`の参照可能性、局面状態、点数整合性は`status`と`status_reasons`で確認できます。非公開の他家手牌や未公開の山牌は出力しません。順位は同点時に`null`です。
+
 ## 今後の予定
 
 1. Mortalとmjai-reviewerの動作検証（完了・条件付き）

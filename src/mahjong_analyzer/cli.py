@@ -18,6 +18,7 @@ from .context import extract_contexts_path
 from .identity import load_tenhou_identity
 from .importer import ImportMetadata, import_file
 from .report import format_summary, list_games, show_game, summary
+from .review import get_review_scene
 from .runner import AnalysisConfig, analyze_log
 from .schema import connect, initialize
 from .tenhou import analyze_tenhou_path
@@ -148,6 +149,13 @@ def build_parser() -> argparse.ArgumentParser:
     search.add_argument("--mid-end", type=int, default=12)
     search.add_argument("--format", choices=("json", "text"), default="json")
     _add_context_filter_options(search)
+    scene = sub.add_parser("show-decision", help="Show one review scene using saved context and MJAI")
+    scene.add_argument("--database", default="local_data/mahjong_analyzer.sqlite3")
+    scene.add_argument("--decision-id", type=int, required=True)
+    scene.add_argument("--review-root", type=Path, default=Path("local_data"))
+    scene.add_argument("--review-json", type=Path)
+    scene.add_argument("--source-root", type=Path, default=Path("data/raw/tenhou"))
+    scene.add_argument("--format", choices=("json", "text"), default="json")
     analyze = sub.add_parser("analyze-log", help="Review a local Tenhou/6 JSON and import it")
     analyze.add_argument("path", type=Path)
     analyze.add_argument("--player-id", type=int, required=True)
@@ -424,6 +432,26 @@ def main(argv: list[str] | None = None) -> int:
                                    "limit": result.limit, "items": list(result.items)}, args.format)
             return 0
         except (AnalyzerError, ValueError) as exc:
+            print(f"error: {exc}")
+            return 1
+    if args.command == "show-decision":
+        try:
+            with connect(Path(args.database)) as connection:
+                result = get_review_scene(
+                    connection, args.decision_id, review_root=args.review_root,
+                    review_json=args.review_json, source_root=args.source_root,
+                )
+            if args.format == "json":
+                print(json.dumps(result, ensure_ascii=False, indent=2))
+            else:
+                identity = result["identity"]
+                mortal = result["mortal"]
+                print(f"decision_id={identity['decision_id']} status={result['status']} "
+                      f"round={identity['round_index']} event={identity['source_event_index']}")
+                print(f"action={mortal['action_category']} equal={mortal['is_equal']} "
+                      f"probability={mortal['actual_probability']}")
+            return 0
+        except (OSError, AnalyzerError, ValueError) as exc:
             print(f"error: {exc}")
             return 1
     return 2

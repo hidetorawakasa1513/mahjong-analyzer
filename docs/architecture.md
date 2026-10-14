@@ -52,6 +52,7 @@ XML/gzip validation → Mahjong-Replay-Converter → compatibility adapter
 - `mahjong_analyzer.workflow`: inbox processing, hash-verified organization, failure sidecars, retry handling, and reviewed-file migration.
 - `mahjong_analyzer.identity`: local identity configuration, exact decoded player-name matching, manual-seat cross-checking, and `tw=` view validation.
 - `mahjong_analyzer.analytics`: read-only context aggregation, parameterized multi-condition decision search, configurable turn/score buckets, and structured JSON results for future UI reuse.
+- `mahjong_analyzer.review`: decision-id based scene retrieval, review JSON/MJAI event replay, public-information reconstruction, and Mortal candidate packaging for future review UI.
 
 ## Data model
 
@@ -82,6 +83,12 @@ The default is `local_data/mahjong_analyzer.sqlite3`, which is ignored by Git. U
 `source_event_index`はレビューJSON内のMJAI配列の論理位置で、`source_round_event_index`は局内位置である。実イベントは順序・行動内容・`tiles_left`を使って対応づける。`none`は非行動機会として対応できた場合だけ`mapping_kind=non_action_opportunity`で保存し、見送りの分母へ自動追加しない。
 
 `decision_contexts`には、判断直前の本人手牌・副露、Reviewer向聴数、`reach_accepted`に基づく成立済みリーチ、局開始点からリーチ支払いと結果差分を順序適用した4人の点数、スコア降順の競技順位と点差を保存する。同点順位の天鳳固有ルールは未確定のため、採用ポリシーを抽出器の記録対象とし、将来変更可能にする。復元不能な値はNULLと状態理由を保存する。
+
+## Phase 2-C①
+
+`review.get_review_scene()`は、登録済みの`decision_id`からレビューJSON内のMJAIログと`decision_contexts`を再利用して局面を構成する。通常の行動は対応イベントの処理前、`none`の非行動機会は参照された公開打牌を含む時点を返す。手牌・副露はレビューの判断状態を使用し、河・公開副露・リーチ状態・ドラ表示牌はMJAIを判断時点まで再生して作る。返却データにはイベント基準、元牌譜SHA-256、レビューJSON参照、状態理由を含める。
+
+元牌譜が存在する場合はSHA-256照合済みの参照を返す。復元自体はレビューJSONに保存されたMJAIから可能だが、元`.mjlog`がない場合も推測で補完せず、参照不可として明示する。非公開手牌・未公開山牌を公開情報の構造へ含めない。MortalのQ値や確率は評価値として返し、点数損失へ変換しない。
 
 ## Phase 2-B 第2段階
 
