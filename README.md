@@ -169,6 +169,20 @@ test -s local_data/config.json && echo "Tenhou local identity config exists"
 
 失敗後に再試行する場合は`--retry-failed`を追加します。自動ダウンロード、スクレイピング、ログイン、認証情報の取得は行いません。
 
+## Phase 2-B 第1段階: 局面コンテキスト抽出
+
+保存済みのレビューJSONから、Mortalを再実行せずに判断時点の局面情報を抽出し、既存の`decisions`に紐づく`decision_contexts`へ保存できます。元の`games`、`reviews`、`decisions`は変更しません。
+
+```bash
+.venv/bin/mahjong-analyzer extract-contexts local_data/tenhou-analysis/analysis/ \
+  --database local_data/mahjong_analyzer.sqlite3 \
+  --extractor-version phase2-context-v1
+```
+
+抽出対象はレビューJSONのMJAIイベント列です。実イベントは局内順序、行動、座席、牌、`tiles_left`で対応づけます。`actual.type == "none"`は、直前の他家打牌に対するレビュー上の非行動機会として一意に復元できる場合だけ`non_action_opportunity`として保存し、鳴きの見送り件数と断定しません。曖昧な場合は`unmapped`になります。
+
+`decision_contexts`には、局・本場・巡目、本人の手牌と副露、Reviewerの向聴数、成立済み他家リーチ、判断直前の4人の点数、順位・点差、行動カテゴリ、MJAIイベント位置、抽出器バージョンを保存します。抽出器を更新するときは`--extractor-version`を変更して旧結果を保持します。個人牌譜、レビューJSON、SQLiteはGit管理対象外です。
+
 ## 今後の予定
 
 1. Mortalとmjai-reviewerの動作検証（完了・条件付き）

@@ -58,7 +58,7 @@ def db(tmp_path: Path) -> sqlite3.Connection:
 
 def test_sqlite_initialization_enables_foreign_keys(db: sqlite3.Connection) -> None:
     assert db.execute("PRAGMA foreign_keys").fetchone()[0] == 1
-    assert db.execute("SELECT value FROM schema_meta WHERE key = 'schema_version'").fetchone()[0] == "2"
+    assert db.execute("SELECT value FROM schema_meta WHERE key = 'schema_version'").fetchone()[0] == "3"
 
 
 def test_normal_import_and_metrics(db: sqlite3.Connection) -> None:

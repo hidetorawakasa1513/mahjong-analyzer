@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 def connect(path: Path) -> sqlite3.Connection:
@@ -72,8 +72,54 @@ def initialize(connection: sqlite3.Connection) -> None:
             UNIQUE(review_id, decision_index)
         );
 
+        CREATE TABLE IF NOT EXISTS decision_contexts (
+            id INTEGER PRIMARY KEY,
+            decision_id INTEGER NOT NULL REFERENCES decisions(id) ON DELETE CASCADE,
+            extractor_version TEXT NOT NULL,
+            context_status TEXT NOT NULL CHECK(context_status IN ('complete', 'partial', 'unmapped', 'invalid')),
+            mapping_kind TEXT NOT NULL CHECK(mapping_kind IN ('event', 'non_action_opportunity', 'unmapped')),
+            status_reason TEXT,
+            source_event_index INTEGER,
+            source_round_event_index INTEGER,
+            round_index INTEGER,
+            bakaze TEXT,
+            kyoku INTEGER,
+            honba INTEGER,
+            turn_number INTEGER,
+            hand_json TEXT,
+            fuuros_json TEXT,
+            shanten_before INTEGER,
+            opponent_riichi_count INTEGER,
+            riichi_seats_json TEXT,
+            self_riichi INTEGER CHECK(self_riichi IN (0, 1) OR self_riichi IS NULL),
+            is_dealer INTEGER CHECK(is_dealer IN (0, 1) OR is_dealer IS NULL),
+            scores_before_json TEXT,
+            rank_before INTEGER,
+            gap_to_first INTEGER,
+            gap_to_last INTEGER,
+            gap_to_above INTEGER,
+            gap_to_below INTEGER,
+            action_category TEXT,
+            source_sha256 TEXT,
+            mjai_log_sha256 TEXT,
+            extraction_note TEXT,
+            created_at TEXT NOT NULL,
+            UNIQUE(decision_id, extractor_version)
+        );
+
+        CREATE INDEX IF NOT EXISTS decision_contexts_source_event_idx
+            ON decision_contexts(source_event_index);
+        CREATE INDEX IF NOT EXISTS decision_contexts_action_idx
+            ON decision_contexts(action_category);
+        CREATE INDEX IF NOT EXISTS decision_contexts_turn_idx
+            ON decision_contexts(turn_number);
+        CREATE INDEX IF NOT EXISTS decision_contexts_shanten_idx
+            ON decision_contexts(shanten_before);
+        CREATE INDEX IF NOT EXISTS decision_contexts_riichi_idx
+            ON decision_contexts(opponent_riichi_count);
+
         INSERT INTO schema_meta(key, value)
-        VALUES ('schema_version', '2')
+        VALUES ('schema_version', '3')
         ON CONFLICT(key) DO UPDATE SET value = excluded.value;
         """
     )
@@ -90,5 +136,5 @@ def initialize(connection: sqlite3.Connection) -> None:
         WHERE review_identity_sha256 IS NOT NULL
         """
     )
-    connection.execute("UPDATE schema_meta SET value = '2' WHERE key = 'schema_version'")
+    connection.execute("UPDATE schema_meta SET value = '3' WHERE key = 'schema_version'")
     connection.commit()

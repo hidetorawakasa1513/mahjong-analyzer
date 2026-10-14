@@ -6,6 +6,7 @@ import sqlite3
 from pathlib import Path
 
 from .errors import AnalyzerError
+from .context import extract_contexts_path
 from .identity import load_tenhou_identity
 from .importer import ImportMetadata, import_file
 from .report import format_summary, list_games, show_game, summary
@@ -56,6 +57,10 @@ def build_parser() -> argparse.ArgumentParser:
     report = sub.add_parser("summary", help="Summarize imported reviews")
     report.add_argument("--database", default="local_data/mahjong_analyzer.sqlite3")
     report.add_argument("--threshold", type=float, default=0.05)
+    contexts = sub.add_parser("extract-contexts", help="Extract decision contexts from saved review JSON files")
+    contexts.add_argument("path", type=Path)
+    contexts.add_argument("--database", default="local_data/mahjong_analyzer.sqlite3")
+    contexts.add_argument("--extractor-version", default="phase2-context-v1")
     analyze = sub.add_parser("analyze-log", help="Review a local Tenhou/6 JSON and import it")
     analyze.add_argument("path", type=Path)
     analyze.add_argument("--player-id", type=int, required=True)
@@ -273,6 +278,33 @@ def main(argv: list[str] | None = None) -> int:
                 "details": list(result.details),
             }, ensure_ascii=False))
             return 1 if result.failures or result.held else 0
+        except (OSError, AnalyzerError, ValueError) as exc:
+            print(f"error: {exc}")
+            return 1
+    if args.command == "extract-contexts":
+        try:
+            connection = _db(args)
+            try:
+                results = extract_contexts_path(
+                    connection, args.path, extractor_version=args.extractor_version,
+                )
+            finally:
+                connection.close()
+            print(json.dumps({
+                "reviews": len(results),
+                "total": sum(item.total for item in results),
+                "complete": sum(item.complete for item in results),
+                "event_mapped": sum(item.event_mapped for item in results),
+                "non_action_mapped": sum(item.non_action_mapped for item in results),
+                "partial": sum(item.partial for item in results),
+                "unmapped": sum(item.unmapped for item in results),
+                "shanten_success": sum(item.shanten_success for item in results),
+                "turn_success": sum(item.turn_success for item in results),
+                "score_success": sum(item.score_success for item in results),
+                "inserted": sum(item.inserted for item in results),
+                "duplicates": sum(item.duplicate for item in results),
+            }, ensure_ascii=False))
+            return 0
         except (OSError, AnalyzerError, ValueError) as exc:
             print(f"error: {exc}")
             return 1

@@ -73,3 +73,11 @@ Summaries are grouped by engine, reviewer version, model tag/identity, GRP ident
 ## Database location
 
 The default is `local_data/mahjong_analyzer.sqlite3`, which is ignored by Git. Use `--database` to select another local path. `local_data/config.json` is also ignored by Git and stores the local Tenhou account identifier and player name. `analyze-log` writes generated MJAI and review JSON to `local_data/analysis` by default; `analyze-tenhou` writes converter output, normalized Tenhou/6 JSON, preflight MJAI, review MJAI, and review JSON below `local_data/tenhou-analysis` by default. Use `--output-dir` to select another ignored local path. Input `.mjlog`, Tenhou/6, and review JSON files are read-only. A Tenhou duplicate requires matching game/source-log identity, resolved seat, reviewer version, temperature, and model tag for a successfully stored Mortal review.
+
+## Phase 2-B 第1段階
+
+保存済みレビューJSONのMJAIイベント列を読み取り、`decision_contexts`へ局面コンテキストを抽出する。Mortalは再実行しない。既存の`decisions`は変更せず、`UNIQUE(decision_id, extractor_version)`で抽出器の更新と再計算を分離する。
+
+`source_event_index`はレビューJSON内のMJAI配列の論理位置で、`source_round_event_index`は局内位置である。実イベントは順序・行動内容・`tiles_left`を使って対応づける。`none`は非行動機会として対応できた場合だけ`mapping_kind=non_action_opportunity`で保存し、見送りの分母へ自動追加しない。
+
+`decision_contexts`には、判断直前の本人手牌・副露、Reviewer向聴数、`reach_accepted`に基づく成立済みリーチ、局開始点からリーチ支払いと結果差分を順序適用した4人の点数、スコア降順の競技順位と点差を保存する。同点順位の天鳳固有ルールは未確定のため、採用ポリシーを抽出器の記録対象とし、将来変更可能にする。復元不能な値はNULLと状態理由を保存する。
