@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mahjong Analyzer — 卓面UIモックアップ</title>
+  <link rel="stylesheet" href="table-mockup.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="toolbar">
+      <div><h1>Mahjong Analyzer / 局面復習モックアップ</h1><small>固定サンプル表示 — 実牌譜・SQLiteとは未接続</small></div>
+      <div class="muted">Phase 3-C②-A</div>
+    </header>
+
+    <section class="workspace" aria-label="卓面と評価パネル">
+      <section class="table-card" aria-label="麻雀卓">
+        <div class="seat-name seat-top">対面　25,600</div>
+        <div class="seat-name seat-left">左家　18,200</div>
+        <div class="seat-name seat-right">右家　31,100</div>
+        <div class="seat-name seat-bottom">自分　25,100</div>
+
+        <div class="river river-top">
+          <img class="tile" src="../../assets/third_party/mj_king/tiles/1m.gif" alt="1m"><img class="tile" src="../../assets/third_party/mj_king/tiles/3p.gif" alt="3p"><img class="tile" src="../../assets/third_party/mj_king/tiles/7s.gif" alt="7s"><img class="tile" src="../../assets/third_party/mj_king/tiles/C.gif" alt="中"><img class="tile" src="../../assets/third_party/mj_king/tiles/5m.gif" alt="5m"><img class="tile" src="../../assets/third_party/mj_king/tiles/9p.gif" alt="9p">
+          <img class="tile" src="../../assets/third_party/mj_king/tiles/2m.gif" alt="2m"><img class="tile" src="../../assets/third_party/mj_king/tiles/6p.gif" alt="6p"><img class="tile" src="../../assets/third_party/mj_king/tiles/4s.gif" alt="4s"><img class="tile" src="../../assets/third_party/mj_king/tiles/E.gif" alt="東"><img class="tile" src="../../assets/third_party/mj_king/tiles/8m.gif" alt="8m"><img class="tile" src="../../assets/third_party/mj_king/tiles/P.gif" alt="白">
+        </div>
+        <div class="river river-left">
+          <img class="tile" src="../../assets/third_party/mj_king/tiles/4p.gif" alt="4p"><img class="tile" src="../../assets/third_party/mj_king/tiles/8s.gif" alt="8s"><img class="tile" src="../../assets/third_party/mj_king/tiles/2m.gif" alt="2m"><img class="tile" src="../../assets/third_party/mj_king/tiles/S.gif" alt="南"><img class="tile" src="../../assets/third_party/mj_king/tiles/7p.gif" alt="7p"><img class="tile" src="../../assets/third_party/mj_king/tiles/1s.gif" alt="1s"><img class="tile" src="../../assets/third_party/mj_king/tiles/9m.gif" alt="9m"><img class="tile" src="../../assets/third_party/mj_king/tiles/F.gif" alt="發"><img class="tile" src="../../assets/third_party/mj_king/tiles/6s.gif" alt="6s"><img class="tile" src="../../assets/third_party/mj_king/tiles/3m.gif" alt="3m"><img class="tile" src="../../assets/third_party/mj_king/tiles/N.gif" alt="北"><img class="tile" src="../../assets/third_party/mj_king/tiles/8p.gif" alt="8p">
+        </div>
+        <div class="river river-right">
+          <img class="tile" src="../../assets/third_party/mj_king/tiles/9s.gif" alt="9s"><img class="tile" src="../../assets/third_party/mj_king/tiles/5p.gif" alt="5p"><img class="tile" src="../../assets/third_party/mj_king/tiles/2s.gif" alt="2s"><img class="tile" src="../../assets/third_party/mj_king/tiles/7m.gif" alt="7m"><img class="tile" src="../../assets/third_party/mj_king/tiles/W.gif" alt="西"><img class="tile" src="../../assets/third_party/mj_king/tiles/4m.gif" alt="4m"><img class="tile" src="../../assets/third_party/mj_king/tiles/6m.gif" alt="6m"><img class="tile" src="../../assets/third_party/mj_king/tiles/3s.gif" alt="3s"><img class="tile" src="../../assets/third_party/mj_king/tiles/5s.gif" alt="5s"><img class="tile" src="../../assets/third_party/mj_king/tiles/1p.gif" alt="1p"><img class="tile" src="../../assets/third_party/mj_king/tiles/8m.gif" alt="8m"><img class="tile" src="../../assets/third_party/mj_king/tiles/C.gif" alt="中">
+        </div>
+        <div class="river river-bottom">
+          <img class="tile" src="../../assets/third_party/mj_king/tiles/2p.gif" alt="2p"><img class="tile" src="../../assets/third_party/mj_king/tiles/4p.gif" alt="4p"><img class="tile" src="../../assets/third_party/mj_king/tiles/5sr.gif" alt="赤5索"><img class="tile" src="../../assets/third_party/mj_king/tiles/7s.gif" alt="7s"><img class="tile" src="../../assets/third_party/mj_king/tiles/9p.gif" alt="9p"><img class="tile" src="../../assets/third_party/mj_king/tiles/E.gif" alt="東"><img class="tile" src="../../assets/third_party/mj_king/tiles/6p.gif" alt="6p"><img class="tile" src="../../assets/third_party/mj_king/tiles/3s.gif" alt="3s"><img class="tile" src="../../assets/third_party/mj_king/tiles/8p.gif" alt="8p"><img class="tile" src="../../assets/third_party/mj_king/tiles/1m.gif" alt="1m"><img class="tile" src="../../assets/third_party/mj_king/tiles/4s.gif" alt="4s"><img class="tile" src="../../assets/third_party/mj_king/tiles/9m.gif" alt="9m">
+        </div>
+
+        <div class="melds melds-top"><img class="tile" src="../../assets/third_party/mj_king/tiles/3p.gif" alt="3p"><img class="tile" src="../../assets/third_party/mj_king/tiles/4p.gif" alt="4p"><img class="tile" src="../../assets/third_party/mj_king/tiles/5p.gif" alt="5p"></div>
+        <div class="melds melds-left"><img class="tile" src="../../assets/third_party/mj_king/tiles/7m.gif" alt="7m"><img class="tile" src="../../assets/third_party/mj_king/tiles/8m.gif" alt="8m"><img class="tile" src="../../assets/third_party/mj_king/tiles/9m.gif" alt="9m"></div>
+        <div class="melds melds-right"><img class="tile" src="../../assets/third_party/mj_king/tiles/2s.gif" alt="2s"><img class="tile" src="../../assets/third_party/mj_king/tiles/3s.gif" alt="3s"><img class="tile" src="../../assets/third_party/mj_king/tiles/4s.gif" alt="4s"></div>
+        <div class="melds melds-bottom"><img class="tile" src="../../assets/third_party/mj_king/tiles/6m.gif" alt="6m"><img class="tile" src="../../assets/third_party/mj_king/tiles/7m.gif" alt="7m"><img class="tile" src="../../assets/third_party/mj_king/tiles/8m.gif" alt="8m"></div>
+
+        <div class="center-info">
+          <div><div class="round-stat">東場 / 4巡目 / 0本場 / 供託 1,000</div><h2>東 2局</h2><p>残りツモ 66枚　1向聴</p><div class="score-row"><span>自 25,100</span><span>対 25,600</span></div><div class="score-row"><span>左 18,200</span><span>右 31,100</span></div><p>ドラ表示牌：<strong>5p</strong>　リーチ：なし</p></div>
+        </div>
+
+        <div class="hand-zone" aria-label="自分の手牌">
+          <img class="tile" src="../../assets/third_party/mj_king/tiles/1m.gif" alt="1m"><img class="tile" src="../../assets/third_party/mj_king/tiles/2m.gif" alt="2m"><img class="tile selected" src="../../assets/third_party/mj_king/tiles/5mr.gif" alt="赤5萬"><img class="tile" src="../../assets/third_party/mj_king/tiles/6m.gif" alt="6m"><img class="tile" src="../../assets/third_party/mj_king/tiles/7m.gif" alt="7m"><img class="tile" src="../../assets/third_party/mj_king/tiles/3p.gif" alt="3p"><img class="tile" src="../../assets/third_party/mj_king/tiles/4p.gif" alt="4p"><img class="tile" src="../../assets/third_party/mj_king/tiles/6p.gif" alt="6p"><img class="tile" src="../../assets/third_party/mj_king/tiles/7s.gif" alt="7s"><img class="tile" src="../../assets/third_party/mj_king/tiles/8s.gif" alt="8s"><img class="tile" src="../../assets/third_party/mj_king/tiles/E.gif" alt="東"><img class="tile" src="../../assets/third_party/mj_king/tiles/P.gif" alt="白"><img class="tile recommended" src="../../assets/third_party/mj_king/tiles/9p.gif" alt="9p"><img class="tile tsumo" src="../../assets/third_party/mj_king/tiles/5pr.gif" alt="赤5筒">
+        </div>
+        <div class="tile-legend">赤枠：本人の選択　紫枠：Mortal第一候補　／　固定サンプル</div>
+      </section>
+
+      <aside class="analysis-panel" aria-label="解析情報と操作">
+        <div class="nav-grid"><button>&lt; 前局</button><button>次局 &gt;</button><button>&lt; 前判断</button><button>次判断 &gt;</button><button>&lt; 前不一致</button><button>次不一致 &gt;</button></div>
+        <div class="info-card"><h3>局面情報</h3><div>東2局 / 4巡目 / 1向聴</div><div class="muted">他家リーチ 0人　親：対面</div></div>
+        <div class="info-card"><h3>本人の選択</h3><div class="action-line"><strong class="actual-text">打 5mr（赤5萬）</strong><span class="actual-text">本人</span></div><div class="metric actual-text">32.4%</div><div class="muted">推奨確率（行動選択確率）</div><div class="probability"><div class="probability-row"><span>本人の選択</span><b>32.4%</b></div><div class="bar actual"><span style="width:32.4%"></span></div></div></div>
+        <div class="info-card"><h3>あわせて確認する候補</h3><div class="action-line"><strong class="mortal-text">打 9p</strong><span class="mortal-text">Mortal第一候補</span></div><div class="probability"><div class="probability-row"><span>打 9p</span><b>48.7%</b></div><div class="bar"><span style="width:48.7%"></span></div></div><div class="probability"><div class="probability-row"><span>打 5mr</span><b>32.4%</b></div><div class="bar actual"><span style="width:32.4%"></span></div></div><div class="probability"><div class="probability-row"><span>打 1m</span><b>11.2%</b></div><div class="bar"><span style="width:11.2%"></span></div></div><div class="probability"><div class="probability-row"><span>その他</span><b>7.7%</b></div><div class="bar"><span style="width:7.7%"></span></div></div></div>
+        <div class="info-card"><h3>表示条件</h3><select aria-label="表示条件"><option>Mortal / mjai-reviewer 固定サンプル</option></select><p class="muted">Q値や確率は評価情報であり、期待得点・放銃率ではありません。</p></div>
+      </aside>
+    </section>
+    <p class="footer-note">このページはUI配置検討用の静的モックアップです。画像はローカルの麻雀王国素材を参照し、実データや外部通信は使用していません。</p>
+  </main>
+</body>
+</html>

@@ -39,5 +39,8 @@ target/
 *.dylib
 *.so
 
+# Third-party visual references (do not publish)
+docs/references/
+
 # OS/editor
 .DS_Store
