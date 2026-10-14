@@ -1,6 +1,22 @@
 # Mahjong Analyzer
 
-雀魂の牌譜を活用して、自分の打牌傾向や弱点を分析するツールです。
+ローカルに保存した麻雀牌譜をMortal・mjai-reviewerで評価し、SQLiteとStreamlitで指標・局面を確認する分析ツールです。
+
+## 現在の安定版スコープ
+
+Phase 0〜Phase 3-Cの実装を含みます。天鳳の手動ダウンロード済み`.mjlog`の取り込み、互換性補正、重複排除、局面コンテキスト抽出、状況別集計、復習候補、実データ卓面表示までをローカルで利用できます。卓面表示には、手牌・ツモ牌・河・副露・ドラ・点数・Mortal候補を含みます。
+
+日常運用は次の文書から始めてください。
+
+- [クイックスタート](docs/quick-start.md)
+- [運用ガイド](docs/operation-guide.md)
+- [技術ノート](docs/technical-notes.md)
+- [アーキテクチャ](docs/architecture.md)
+- [Phase 0技術検証](docs/technical-research.md)
+
+公開前には、個人牌譜・レビューJSON・SQLite・モデル重み・ローカル設定を必ず除外してください。
+
+雀魂へのログイン・自動取得・リアルタイム解析は対象外です。
 
 ## 目的
 
@@ -17,11 +33,11 @@
 - mjai-reviewer
 - SQLite（標準ライブラリ）
 - pytest（開発時）
-- Streamlit（将来予定）
+- Streamlit（任意のダッシュボード依存関係）
 
 ## 開発状況
 
-Phase 0の技術検証を終え、Phase 1のCLI基盤を実装しています。雀魂へのログイン・自動取得・GUIは対象外です。
+Phase 0の技術検証、Phase 1〜2の取り込み・保存・集計、Phase 3のStreamlitダッシュボードと卓面型局面復習を実装済みです。現在は新機能開発より、既存機能の安定運用・ドキュメント整備・公開範囲の確認を優先します。
 
 ## Phase 1 CLI
 
