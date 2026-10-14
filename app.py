@@ -15,6 +15,8 @@ from mahjong_analyzer.dashboard.data import (
     load_dashboard_paths, scene_data,
 )
 from mahjong_analyzer.errors import AnalyzerError
+from mahjong_analyzer.review import adjacent_decisions
+from mahjong_analyzer.table_view import compact_table_data, tile_ids_from_action
 from mahjong_analyzer.tile_assets import tile_asset
 
 
@@ -361,7 +363,9 @@ def _candidates(connection: Any, summaries: list[dict[str, Any]]) -> None:
             st.session_state["navigation_target"] = "decision"; st.rerun()
 
 
-def _render_tiles(tile_ids: list[str] | tuple[str, ...] | None, asset_root: Path, *, label: str = "") -> None:
+def _render_tiles(tile_ids: list[str] | tuple[str, ...] | None, asset_root: Path, *, label: str = "",
+                  width: int = 47, show_ids: bool = True, highlight_ids: set[str] | None = None,
+                  actual_ids: set[str] | None = None, expected_ids: set[str] | None = None) -> None:
     """Render an allow-listed tile sequence without accepting arbitrary paths."""
     tiles = [tile_id for tile_id in (tile_ids or []) if isinstance(tile_id, str)]
     if label:
@@ -377,8 +381,14 @@ def _render_tiles(tile_ids: list[str] | tuple[str, ...] | None, asset_root: Path
             column.write(tile_id)
             continue
         path = asset.path if asset.path.is_file() else asset_root / "missing.svg"
-        column.image(str(path), width=47)
-        column.caption(f"{tile_id}{'（未収録）' if not asset.supported else ''}")
+        column.image(str(path), width=width)
+        if show_ids:
+            marker = ""
+            if highlight_ids and tile_id in highlight_ids:
+                marker = " 🔴" if actual_ids and tile_id in actual_ids else " 🟣"
+                if expected_ids and tile_id in expected_ids and actual_ids and tile_id in actual_ids:
+                    marker = " 🔴🟣"
+            column.caption(f"{tile_id}{'（未収録）' if not asset.supported else ''}{marker}")
 
 
 def _action_tile_ids(action: Any) -> list[str]:
@@ -395,9 +405,115 @@ def _action_tile_ids(action: Any) -> list[str]:
 
 def _render_action(action: Any, asset_root: Path, label: str) -> None:
     st.markdown(f"**{label}**: {_format_action(action)}")
-    tile_ids = _action_tile_ids(action)
+    tile_ids = tile_ids_from_action(action)
     if tile_ids:
         _render_tiles(tile_ids, asset_root)
+
+
+def _render_river(items: list[dict[str, Any]], asset_root: Path, label: str, *, width: int = 32) -> None:
+    tile_ids = [item.get("pai") for item in items if isinstance(item, dict)]
+    _render_tiles(tile_ids, asset_root, label=label, width=width, show_ids=False)
+    annotations = [f"{item.get('pai', '?')}{'•' if item.get('tsumogiri') else ''}" for item in items]
+    if annotations:
+        st.caption(" ".join(annotations))
+
+
+def _render_melds(melds: list[dict[str, Any]], asset_root: Path, label: str, *, width: int = 30) -> None:
+    if not melds:
+        st.caption(f"{label}: 副露なし")
+        return
+    for index, meld in enumerate(melds, start=1):
+        _render_tiles(tile_ids_from_action(meld), asset_root, label=f"{label} 副露{index}", width=width, show_ids=False)
+
+
+def _render_table(scene: dict[str, Any], asset_root: Path) -> None:
+    data = compact_table_data(scene)
+    seats = data["seats"]
+    st.subheader("麻雀卓")
+    st.markdown("""
+    <style>
+    .mahjong-table-note { background:#e8f2e9; border:1px solid #b5cdb8; border-radius:10px; padding:8px 12px; }
+    .mahjong-center { background:#f2eee3; border:1px solid #cfc5ae; border-radius:12px; padding:12px; text-align:center; }
+    </style>
+    """, unsafe_allow_html=True)
+    actual_ids = set(tile_ids_from_action(data["mortal"]["selected_action"]))
+    expected_ids = set(tile_ids_from_action(data["mortal"]["mortal_first_action"]))
+    with st.container(border=True):
+        st.markdown('<div class="mahjong-table-note">公開情報は判断時点まで。🔴本人の選択 / 🟣Mortal第一候補</div>', unsafe_allow_html=True)
+        _render_river(data["rivers"]["top"], asset_root, f"{data['seat_labels'][seats.top]}（上）")
+        left, center, right = st.columns([1.15, 1.7, 1.15])
+        with left:
+            _render_river(data["rivers"]["left"], asset_root, f"{data['seat_labels'][seats.left]}（左）")
+            _render_melds(data["melds"]["left"], asset_root, data["seat_labels"][seats.left])
+        with center:
+            st.markdown('<div class="mahjong-center">', unsafe_allow_html=True)
+            st.markdown(f"**{data['round']['bakaze']}場 {data['round']['kyoku']}局 {data['round']['honba']}本場**")
+            st.caption(f"{data['round']['turn_number']}巡目 / 残りツモ {data['round']['tiles_left']}枚 / {data['hand']['shanten']}向聴")
+            if data["scores"]:
+                st.write(" / ".join(f"{data['seat_labels'].get(seat, f'{seat}家')} {score:,}" for seat, score in enumerate(data["scores"])))
+            st.write("ドラ", " ".join(data["dora_markers"]) or "なし")
+            riichi = ", ".join(data["seat_labels"].get(seat, f"{seat}家") for seat in data["riichi_accepted_seats"]) or "なし"
+            st.write("リーチ", riichi)
+            st.markdown('</div>', unsafe_allow_html=True)
+        with right:
+            _render_river(data["rivers"]["right"], asset_root, f"{data['seat_labels'][seats.right]}（右）")
+            _render_melds(data["melds"]["right"], asset_root, data["seat_labels"][seats.right])
+        _render_river(data["rivers"]["self"], asset_root, "自分の河")
+        _render_melds(data["melds"]["self"], asset_root, "自分")
+        hand_ids = data["hand"]["tiles"] or []
+        _render_tiles(hand_ids, asset_root, label="自分の手牌", width=38,
+                      highlight_ids=actual_ids | expected_ids, actual_ids=actual_ids, expected_ids=expected_ids)
+        if data["hand"]["tsumo_tile"]:
+            _render_tiles([data["hand"]["tsumo_tile"]], asset_root, label="ツモ牌", width=38,
+                          highlight_ids=actual_ids | expected_ids, actual_ids=actual_ids, expected_ids=expected_ids)
+
+
+def _render_analysis_panel(connection: Any, scene: dict[str, Any], asset_root: Path) -> None:
+    mortal = scene["mortal"]
+    st.subheader("Mortal評価")
+    _render_action(mortal["selected_action"], asset_root, "本人の選択")
+    _render_action(mortal["mortal_first_action"], asset_root, "Mortal第一候補")
+    probability = mortal["actual_probability"]
+    st.metric("本人の推奨確率", "不明" if probability is None else f"{probability:.2%}")
+    st.caption("推奨確率は行動選択確率であり、期待得点や放銃率ではありません。")
+    st.write(f"巡目 {scene['round']['turn_number']}巡 / 残りツモ {scene['round']['tiles_left']}枚 / {scene['hand']['shanten']}向聴 / 他家リーチ {len(scene['public']['riichi_accepted_seats'])}人")
+    candidates = [item for item in mortal["candidates"] if isinstance(item, dict)]
+    st.markdown("**候補行動の推奨確率**")
+    for candidate in candidates[:6]:
+        candidate_probability = candidate.get("prob")
+        if not isinstance(candidate_probability, (int, float)):
+            continue
+        value = max(0.0, min(1.0, float(candidate_probability)))
+        st.caption(_format_action(candidate.get("action")))
+        st.progress(value, text=f"{value:.2%}")
+    if len(candidates) > 6:
+        with st.expander("残りの候補行動"):
+            for candidate in candidates[6:]:
+                st.write(_format_action(candidate.get("action")), candidate.get("prob"))
+    previous, following = adjacent_decisions(
+        connection, scene["identity"]["decision_id"], disagreement_only=False
+    )
+    previous_bad, following_bad = adjacent_decisions(
+        connection, scene["identity"]["decision_id"], disagreement_only=True
+    )
+    st.markdown("**判断ナビゲーション**")
+    nav1, nav2 = st.columns(2)
+    if nav1.button("← 前の判断", disabled=previous is None, key="previous-decision"):
+        st.session_state["selected_decision_id"] = previous; st.rerun()
+    if nav2.button("次の判断 →", disabled=following is None, key="following-decision"):
+        st.session_state["selected_decision_id"] = following; st.rerun()
+    nav3, nav4 = st.columns(2)
+    if nav3.button("← 前のAI不一致", disabled=previous_bad is None, key="previous-disagreement"):
+        st.session_state["selected_decision_id"] = previous_bad; st.rerun()
+    if nav4.button("次のAI不一致 →", disabled=following_bad is None, key="following-disagreement"):
+        st.session_state["selected_decision_id"] = following_bad; st.rerun()
+    if st.button("復習候補一覧へ戻る", key="back-to-candidates"):
+        st.session_state["navigation_target"] = "candidates"; st.rerun()
+
+    with st.expander("開発用の詳細JSON"):
+        st.json({"identity": scene["identity"], "round": scene["round"], "hand": scene["hand"],
+                 "public": scene["public"], "score": scene["score"], "mortal": scene["mortal"],
+                 "none_judgment": scene["none_judgment"]})
 
 
 def _decision(connection: Any, review_root: Path, source_root: Path, asset_root: Path) -> None:
@@ -409,56 +525,16 @@ def _decision(connection: Any, review_root: Path, source_root: Path, asset_root:
     except (AnalyzerError, OSError, ValueError) as exc:
         st.error(str(exc)); return
     st.success(f"復元状態: {scene['status']}")
-    st.subheader("局面")
-    st.write(f"{scene['round']['bakaze']}場 {scene['round']['kyoku']}局 {scene['round']['honba']}本場 / {scene['round']['tiles_left']}枚残り / {scene['hand']['shanten']}向聴")
-    scores = scene["score"].get("scores_before") or []
-    if scores:
-        st.write("持ち点:", " / ".join(f"{index}家 {score:,}点" for index, score in enumerate(scores)))
-
-    st.subheader("自分の手牌")
-    _render_tiles(scene["hand"]["tiles"], asset_root, label="手牌")
-    if scene["hand"]["tsumo_tile"]:
-        _render_tiles([scene["hand"]["tsumo_tile"]], asset_root, label="ツモ牌")
-    fuuros = scene["hand"]["fuuros"] or []
-    if fuuros:
-        st.caption("自分の副露")
-        for index, meld in enumerate(fuuros, start=1):
-            _render_tiles(_action_tile_ids(meld), asset_root, label=f"副露 {index}")
-    else:
-        st.caption("自分の副露: なし")
-    st.write(f"本人リーチ: {'成立' if scene['hand']['self_riichi'] else 'なし'}")
-
-    st.subheader("公開情報")
-    st.caption("ドラ表示牌")
-    _render_tiles(scene["public"]["dora_markers"], asset_root)
-    for actor, river in enumerate(scene["public"]["rivers"]):
-        _render_tiles([item.get("pai") for item in river], asset_root, label=f"{actor}家の河")
-    for actor, melds in enumerate(scene["public"]["melds"]):
-        for index, meld in enumerate(melds, start=1):
-            _render_tiles(_action_tile_ids(meld), asset_root, label=f"{actor}家 副露 {index}")
-    st.write("成立済みリーチ:", ", ".join(f"{seat}家" for seat in scene["public"]["riichi_accepted_seats"]) or "なし")
-
-    st.subheader("Mortal評価")
-    mortal = scene["mortal"]
-    _render_action(mortal["selected_action"], asset_root, "本人の選択")
-    _render_action(mortal["mortal_first_action"], asset_root, "Mortal第一候補")
-    st.write("本人の推奨確率:", mortal["actual_probability"])
-    st.write("行動種類:", mortal["action_category"])
-    with st.expander("候補行動と推奨確率"):
-        for candidate in mortal["candidates"]:
-            action = candidate.get("action") if isinstance(candidate, dict) else None
-            probability = candidate.get("prob") if isinstance(candidate, dict) else None
-            _render_action(action, asset_root, f"推奨確率 {probability}")
-    with st.expander("開発用の詳細JSON"):
-        st.json({"identity": scene["identity"], "round": scene["round"], "hand": scene["hand"],
-                 "public": scene["public"], "score": scene["score"], "mortal": scene["mortal"],
-                 "none_judgment": scene["none_judgment"]})
+    table_column, analysis_column = st.columns([2.25, 1], gap="large")
+    with table_column:
+        _render_table(scene, asset_root)
+    with analysis_column:
+        _render_analysis_panel(connection, scene, asset_root)
     st.caption("Mortalの確率・Q値は評価情報であり、期待失点ではありません。")
-    if st.button("候補一覧へ戻る"): st.session_state["navigation_target"] = "candidates"; st.rerun()
 
 
 def main() -> None:
-    st.set_page_config(page_title="Mahjong Analyzer", layout="wide")
+    st.set_page_config(page_title="Mahjong Analyzer", layout="wide", initial_sidebar_state="collapsed")
     project_root = Path(__file__).resolve().parent
     try:
         configured = load_dashboard_paths(project_root / "local_data/config.json", project_root=project_root)

@@ -13,8 +13,9 @@ TILE_IDS = (
     "E", "S", "W", "N", "P", "F", "C",
     "5mr", "5pr", "5sr",
 )
-SUPPORTED_TILE_IDS = frozenset(tile_id for tile_id in TILE_IDS if len(tile_id) != 3)
-UNSUPPORTED_TILE_IDS = frozenset({"5mr", "5pr", "5sr"})
+OFFICIAL_TILE_IDS = frozenset(tile_id for tile_id in TILE_IDS if len(tile_id) != 3)
+DERIVED_TILE_IDS = frozenset({"5mr", "5pr", "5sr"})
+UNSUPPORTED_TILE_IDS = DERIVED_TILE_IDS
 _HONOR_FILES = {"E": "E.gif", "S": "S.gif", "W": "W.gif", "N": "N.gif",
                 "P": "P.gif", "F": "F.gif", "C": "C.gif"}
 
@@ -40,6 +41,10 @@ def tile_asset(tile_id: str, *, asset_root: Path) -> TileAsset:
     if tile_id not in TILE_IDS:
         raise ValueError(f"unsupported MJAI tile id: {tile_id}")
     if tile_id in UNSUPPORTED_TILE_IDS:
+        filename = {"5mr": "5mr.gif", "5pr": "5pr.gif", "5sr": "5sr.gif"}[tile_id]
+        path = asset_root / filename
+        if path.is_file():
+            return TileAsset(tile_id, path, True, filename)
         return TileAsset(tile_id, asset_root / "unsupported-red.svg", False, None)
     filename = _filename(tile_id)
     return TileAsset(tile_id, asset_root / filename, True, filename)

@@ -13,10 +13,10 @@ ASSET_DIR = Path(__file__).parents[1] / "assets" / "third_party" / "mj_king" / "
 def test_mj_ai_ids_map_to_34_official_gifs_and_three_explicit_placeholders() -> None:
     assets = [tile_asset(tile_id, asset_root=ASSET_DIR) for tile_id in TILE_IDS]
     assert len(assets) == 37
-    assert sum(asset.supported for asset in assets) == 34
-    assert {asset.tile_id for asset in assets if not asset.supported} == UNSUPPORTED_TILE_IDS
+    assert sum(asset.supported for asset in assets) == 37
+    assert {asset.tile_id for asset in assets if asset.source_name and asset.tile_id in UNSUPPORTED_TILE_IDS} == UNSUPPORTED_TILE_IDS
     assert all(asset.path.is_file() for asset in assets)
-    assert all(asset.path.suffix == ".gif" for asset in assets if asset.supported)
+    assert all(asset.path.suffix == ".gif" for asset in assets)
 
 
 def test_official_gifs_are_47_by_63() -> None:
@@ -32,3 +32,9 @@ def test_official_gifs_are_47_by_63() -> None:
 def test_tile_mapping_rejects_arbitrary_paths() -> None:
     with pytest.raises(ValueError):
         tile_asset("../../secret", asset_root=ASSET_DIR)
+
+
+def test_red_tiles_fall_back_to_explicit_placeholder_when_not_generated(tmp_path: Path) -> None:
+    asset = tile_asset("5mr", asset_root=tmp_path)
+    assert asset.supported is False
+    assert asset.path.name == "unsupported-red.svg"

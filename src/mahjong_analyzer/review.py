@@ -257,7 +257,8 @@ def get_review_scene(
         "source": _source_reference(row, path, source_root or review_root),
         "round": {
             "bakaze": context["bakaze"], "kyoku": context["kyoku"], "honba": context["honba"],
-            "oya": oya, "self_wind": self_wind, "tiles_left": entry.get("tiles_left"),
+            "oya": oya, "self_wind": self_wind, "turn_number": context["turn_number"],
+            "tiles_left": entry.get("tiles_left"),
         },
         "hand": {
             "tiles": hand, "tsumo_tile": entry.get("tile"), "fuuros": fuuros,
@@ -291,3 +292,29 @@ def get_review_scene(
             "reference_event_is_exposed": include_reference,
         },
     }
+
+
+def adjacent_decisions(
+    connection: sqlite3.Connection,
+    decision_id: int,
+    *,
+    disagreement_only: bool = False,
+) -> tuple[int | None, int | None]:
+    """Return previous/next decisions within the same review condition."""
+    current = connection.execute(
+        "SELECT review_id, decision_index FROM decisions WHERE id = ?", (decision_id,)
+    ).fetchone()
+    if current is None:
+        raise ValidationError(f"decision not found: {decision_id}")
+    predicate = " AND is_equal = 0" if disagreement_only else ""
+    previous = connection.execute(
+        f"SELECT id FROM decisions WHERE review_id = ? AND decision_index < ?{predicate} "
+        "ORDER BY decision_index DESC, id DESC LIMIT 1",
+        (current["review_id"], current["decision_index"]),
+    ).fetchone()
+    following = connection.execute(
+        f"SELECT id FROM decisions WHERE review_id = ? AND decision_index > ?{predicate} "
+        "ORDER BY decision_index ASC, id ASC LIMIT 1",
+        (current["review_id"], current["decision_index"]),
+    ).fetchone()
+    return (previous["id"] if previous else None, following["id"] if following else None)

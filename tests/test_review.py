@@ -8,7 +8,7 @@ import pytest
 from mahjong_analyzer.context import extract_review_context
 from mahjong_analyzer.errors import ValidationError
 from mahjong_analyzer.importer import import_review, normalize_review
-from mahjong_analyzer.review import get_review_scene
+from mahjong_analyzer.review import adjacent_decisions, get_review_scene
 from mahjong_analyzer.schema import connect, initialize
 
 from test_context import _payload
@@ -61,4 +61,12 @@ def test_review_scene_rejects_missing_or_unregistered_review_json(tmp_path: Path
     with pytest.raises(ValidationError, match="does not match"):
         get_review_scene(connection, 1, review_json=other)
     assert review_path.exists()
+    connection.close()
+
+
+def test_adjacent_decisions_stay_inside_same_review(tmp_path: Path) -> None:
+    connection, _ = _prepared(tmp_path)
+    assert adjacent_decisions(connection, 1) == (None, 2)
+    assert adjacent_decisions(connection, 2) == (1, None)
+    assert adjacent_decisions(connection, 1, disagreement_only=True) == (None, None)
     connection.close()
