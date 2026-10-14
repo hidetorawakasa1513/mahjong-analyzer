@@ -11,7 +11,7 @@ def _scene(player_id: int = 0) -> dict:
         "identity": {"player_id": player_id},
         "round": {"bakaze": "E", "kyoku": 1, "honba": 0, "kyotaku": 1,
                    "turn_number": 4, "tiles_left": 60},
-        "hand": {"tiles": ["1m", "5mr", "7p"], "tsumo_tile": "5pr", "fuuros": [], "shanten": 1},
+        "hand": {"tiles": ["1m", "5mr", "7p"], "tsumo_tile": "5pr", "fuuros": [{"type": "pon", "actor": 0, "target": 1, "pai": "E", "consumed": ["E", "E"]}], "shanten": 1},
         "public": {
             "rivers": [[{"pai": "1m", "tsumogiri": True, "riichi_declaration": True}], [], [], []],
             "melds": [[{"type": "pon", "actor": 0, "target": 1, "pai": "E", "consumed": ["E", "E"]}], [], [], []],
@@ -46,6 +46,16 @@ def test_renderer_shows_riichi_claimed_and_relative_data() -> None:
     assert "5mr" in html and "5pr" in html
 
 
+def test_called_tile_position_follows_source_direction() -> None:
+    for target, side in ((1, "right"), (2, "center"), (3, "left")):
+        scene = _scene()
+        scene["public"]["melds"][0][0]["target"] = target
+        scene["hand"]["fuuros"][0]["target"] = target
+        html = render_table_html(scene, ASSETS)
+        assert f"ma-called-{side}" in html
+        assert f"鳴き元: {'右' if side == 'right' else '対面' if side == 'center' else '左'}" in html
+
+
 def test_non_discard_action_does_not_highlight_a_hand_tile() -> None:
     scene = _scene()
     scene["mortal"]["selected_action"] = {"type": "none"}
@@ -58,3 +68,16 @@ def test_same_discard_is_marked_as_both_actual_and_recommended() -> None:
     scene["mortal"]["mortal_first_action"] = {"type": "dahai", "pai": "5mr"}
     html = render_table_html(scene, ASSETS)
     assert "ma-both" in html
+
+
+def test_evaluation_shows_three_candidates_and_collapses_the_rest() -> None:
+    scene = _scene()
+    scene["mortal"]["candidates"] = [
+        {"action": {"type": "dahai", "pai": tile}, "prob": probability}
+        for tile, probability in (("1m", 0.40), ("2m", 0.30), ("3m", 0.20), ("4m", 0.07), ("5m", 0.03))
+    ]
+    html = render_evaluation_html(scene, ASSETS)
+    assert html.count('class="ma-prob"') == 5
+    assert html.count("もっとみる") == 1
+    assert "もっとみる（2件）" in html
+    assert "40.00%" in html and "3.00%" in html

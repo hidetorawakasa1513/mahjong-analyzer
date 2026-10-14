@@ -120,7 +120,6 @@ def _public_snapshot(events: list[dict[str, Any]]) -> dict[str, Any]:
         "riichi_pending_seats": sorted(riichi_pending),
         "riichi_accepted_seats": sorted(riichi_accepted),
         "dora_markers": dora_markers,
-        "riichi_pending_seats": sorted(riichi_pending),
         "event_count": len(events),
     }
 

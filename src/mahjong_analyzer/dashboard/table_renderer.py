@@ -98,6 +98,16 @@ def _river(items: list[dict[str, Any]], asset_root: Path, position: str) -> str:
     return f'<div class="ma-river ma-river-{position}" aria-label="{position}の河">{"".join(parts)}</div>'
 
 
+def _called_side(meld: dict[str, Any]) -> str | None:
+    """Return the called tile's side from the actor's viewpoint."""
+    actor = meld.get("actor")
+    target = meld.get("target")
+    if not isinstance(actor, int) or not isinstance(target, int):
+        return None
+    # From the actor's viewpoint: kamicha=left, toimen=center, shimocha=right.
+    return {3: "left", 2: "center", 1: "right"}.get((target - actor) % 4)
+
+
 def _meld(meld: dict[str, Any], asset_root: Path) -> str:
     kind = meld.get("type")
     ids = tile_ids_from_action(meld)
@@ -107,12 +117,27 @@ def _meld(meld: dict[str, Any], asset_root: Path) -> str:
             pieces[1] = '<span class="ma-kan-back" title="暗槓：裏面表現は未収録">裏</span>'
             pieces[2] = '<span class="ma-kan-back" title="暗槓：裏面表現は未収録">裏</span>'
     else:
+        called_side = _called_side(meld)
+        called_index = 0 if isinstance(meld.get("target"), int) and ids else None
+        entries = [(value, index == called_index) for index, value in enumerate(ids)]
+        if called_index is not None and called_side == "left":
+            entries = [entries[called_index]] + [entry for index, entry in enumerate(entries) if index != called_index]
+        elif called_index is not None and called_side == "right":
+            entries = [entry for index, entry in enumerate(entries) if index != called_index] + [entries[called_index]]
+        elif called_index is not None and called_side == "center":
+            normal = [entry for index, entry in enumerate(entries) if index != called_index]
+            midpoint = len(normal) // 2
+            entries = normal[:midpoint] + [entries[called_index]] + normal[midpoint:]
         pieces = []
-        for index, value in enumerate(ids):
-            called = " ma-meld-called" if index == 0 and isinstance(meld.get("target"), int) else ""
-            pieces.append(_img(value, asset_root, f"ma-meld-tile{called}"))
+        for value, called in entries:
+            classes = "ma-meld-tile"
+            if called:
+                classes += f" ma-meld-called ma-called-{called_side or 'unknown'}"
+            pieces.append(_img(value, asset_root, classes))
     label = {"chi": "チー", "pon": "ポン", "ankan": "暗槓", "kakan": "加槓", "daiminkan": "大明槓"}.get(kind, "副露")
-    return f'<span class="ma-meld" title="{label}">{"".join(pieces)}</span>'
+    source = {"left": "左", "center": "対面", "right": "右"}.get(_called_side(meld))
+    title = f"{label} / 鳴き元: {source}" if source else label
+    return f'<span class="ma-meld" title="{_text(title)}">{"".join(pieces)}</span>'
 
 
 def _melds(items: list[dict[str, Any]], asset_root: Path, position: str) -> str:
@@ -152,7 +177,7 @@ def render_table_html(scene: dict[str, Any], asset_root: Path) -> str:
     tiles_left = _text(round_data.get("tiles_left"), "未取得")
     kyotaku = _text(round_data.get("kyotaku"), "不明")
     dora = "".join(_img(value, asset_root, "ma-dora-tile", "ドラ表示牌") for value in data["dora_markers"])
-    return f'''<div class="ma-table" style="--ma-tile-w:42px;--ma-tile-h:56px">
+    return f'''<div class="ma-table">
       <div class="ma-seat ma-seat-top">{_text(data['seat_labels'][seats.top])}　{_score_text(data, seats.top).split(' ', 1)[-1]}</div>
       <div class="ma-seat ma-seat-left">{_text(data['seat_labels'][seats.left])}　{_score_text(data, seats.left).split(' ', 1)[-1]}</div>
       <div class="ma-seat ma-seat-right">{_text(data['seat_labels'][seats.right])}　{_score_text(data, seats.right).split(' ', 1)[-1]}</div>
@@ -181,21 +206,35 @@ def render_evaluation_html(scene: dict[str, Any], asset_root: Path) -> str:
     expected_action = mortal.get("mortal_first_action")
     candidates = [item for item in mortal.get("candidates", []) if isinstance(item, dict)]
     candidates.sort(key=lambda item: float(item.get("prob")) if isinstance(item.get("prob"), (int, float)) else -1, reverse=True)
-    bars = []
-    for item in candidates:
-        prob = item.get("prob")
-        if not isinstance(prob, (int, float)):
-            continue
-        value = max(0.0, min(1.0, float(prob)))
-        action = _action_text(item.get("action"))
-        cls = "actual" if item.get("action") == actual_action else ""
-        bars.append(f'<div class="ma-prob"><div class="ma-prob-row"><span>{_text(action)}</span><b>{_percent(prob)}</b></div><div class="ma-bar {cls}"><span style="width:{value * 100:.6f}%"></span></div><span class="ma-raw">raw={value:.8f}</span></div>')
+    def render_bars(items: list[dict[str, Any]]) -> str:
+        bars = []
+        for item in items:
+            prob = item.get("prob")
+            if not isinstance(prob, (int, float)):
+                continue
+            value = max(0.0, min(1.0, float(prob)))
+            action = _action_text(item.get("action"))
+            cls = "actual" if item.get("action") == actual_action else ""
+            bars.append(f'<div class="ma-prob"><div class="ma-prob-row"><span>{_text(action)}</span><b>{_percent(prob)}</b></div><div class="ma-bar {cls}"><span style="width:{value * 100:.6f}%"></span></div><span class="ma-raw">raw={value:.8f}</span></div>')
+        return "".join(bars) if bars else '<span class="ma-muted">候補確率は未取得</span>'
+
+    visible_bars = render_bars(candidates[:3])
+    hidden_bars = render_bars(candidates[3:])
+    more = ""
+    if len(candidates) > 3:
+        more = f'<details class="ma-more"><summary>もっとみる（{len(candidates) - 3}件）</summary>{hidden_bars}</details>'
+    actual_probability = mortal.get("actual_probability")
+    first_probability = candidates[0].get("prob") if candidates else None
+    if isinstance(actual_probability, (int, float)) and isinstance(first_probability, (int, float)):
+        difference = f"第一候補との差 {_percent(float(first_probability) - float(actual_probability))}"
+    else:
+        difference = "第一候補との差 不明"
     conditions = f"{mortal.get('model_tag') or 'モデル不明'} / reviewer {mortal.get('reviewer_version') or '不明'} / 温度 {_text(mortal.get('temperature'))}"
     return f'''<div class="ma-panel">
       <div class="ma-card"><h3>局面情報</h3><div>{_text(scene['round'].get('bakaze'))}場 / {_text(scene['round'].get('kyoku'))}局 / {_text(scene['round'].get('turn_number'))}巡目 / {_text(scene['hand'].get('shanten'))}向聴</div><div class="ma-muted">他家リーチ {len(scene['public'].get('riichi_accepted_seats', []))}人 / 評価条件: {_text(conditions)}</div></div>
-      <div class="ma-card"><h3>本人の選択</h3><div class="ma-action-line"><strong class="ma-actual-text">{_text(_action_text(actual_action))}</strong><span class="ma-actual-text">本人</span></div><div class="ma-metric ma-actual-text">{_percent(mortal.get('actual_probability'))}</div><div class="ma-muted">行動選択確率 <span class="ma-raw">raw={_raw_probability(mortal.get('actual_probability'))}</span></div></div>
+      <div class="ma-card"><h3>本人の選択</h3><div class="ma-action-line"><strong class="ma-actual-text">{_text(_action_text(actual_action))}</strong><span class="ma-actual-text">本人</span></div><div class="ma-metric ma-actual-text">{_percent(mortal.get('actual_probability'))}</div><div class="ma-muted">行動選択確率 / {difference} <span class="ma-raw">raw={_raw_probability(mortal.get('actual_probability'))}</span></div></div>
       <div class="ma-card"><h3>Mortal第一候補</h3><div class="ma-action-line"><strong class="ma-mortal-text">{_text(_action_text(expected_action))}</strong><span class="ma-mortal-text">第一候補</span></div><div class="ma-muted">Q値や確率は期待得点・放銃率ではありません。</div></div>
-      <div class="ma-card"><h3>候補行動（確率順）</h3>{''.join(bars) if bars else '<span class="ma-muted">候補確率は未取得</span>'}</div>
+      <div class="ma-card"><h3>候補行動（上位3件）</h3>{visible_bars}{more}</div>
     </div>'''
 
 
