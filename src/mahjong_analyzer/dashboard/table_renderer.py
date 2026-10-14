@@ -95,7 +95,8 @@ def _river(items: list[dict[str, Any]], asset_root: Path, position: str) -> str:
         if item.get("claimed") is True:
             classes.append("ma-claimed")
         parts.append(_img(tile_id, asset_root, " ".join(classes)))
-    return f'<div class="ma-river ma-river-area ma-river-{position}" aria-label="{position}の河">{"".join(parts)}</div>'
+    rows = max(1, min(4, (len(parts) + 5) // 6))
+    return f'<div class="ma-river ma-river-area ma-river-rows-{rows} ma-river-{position}" aria-label="{position}の河">{"".join(parts)}</div>'
 
 
 def _called_side(meld: dict[str, Any]) -> str | None:
@@ -177,7 +178,7 @@ def render_table_html(scene: dict[str, Any], asset_root: Path) -> str:
     tiles_left = _text(round_data.get("tiles_left"), "未取得")
     kyotaku = _text(round_data.get("kyotaku"), "不明")
     dora = "".join(_img(value, asset_root, "ma-dora-tile", "ドラ表示牌") for value in data["dora_markers"])
-    return f'''<div class="ma-table">
+    return f'''<div class="ma-table-shell"><div class="ma-table">
       <div class="ma-seat ma-player-area ma-seat-top">{_text(data['seat_labels'][seats.top])}　{_score_text(data, seats.top).split(' ', 1)[-1]}</div>
       <div class="ma-seat ma-player-area ma-seat-left">{_text(data['seat_labels'][seats.left])}　{_score_text(data, seats.left).split(' ', 1)[-1]}</div>
       <div class="ma-seat ma-player-area ma-seat-right">{_text(data['seat_labels'][seats.right])}　{_score_text(data, seats.right).split(' ', 1)[-1]}</div>
@@ -190,8 +191,7 @@ def render_table_html(scene: dict[str, Any], asset_root: Path) -> str:
         <h2>局面情報</h2><p>{_text(round_data.get('turn_number'))}巡目 / 残りツモ {tiles_left} / {_text(data['hand'].get('shanten'))}向聴</p>
         <div class="ma-score-row"><span>{_text(scores)}</span></div><div class="ma-dora">ドラ {dora or '<span class="ma-muted">未取得</span>'}</div><p>リーチ: {_text(riichi_text)}</p></div></div>
       <div class="ma-hand ma-hand-area" aria-label="本人の手牌">{"".join(hand_parts)}</div>
-      <div class="ma-legend">赤枠：本人の選択　紫枠：Mortal第一候補　黄＋紫：一致　／　赤点：ツモ切り</div>
-    </div>'''
+    </div><div class="ma-legend">赤枠：本人の選択　紫枠：Mortal第一候補　黄＋紫：一致　／　赤点：ツモ切り</div></div>'''
 
 
 def _tile_sort_key(tile_id: str) -> tuple[int, int, str]:

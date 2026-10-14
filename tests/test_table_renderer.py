@@ -86,9 +86,18 @@ def test_evaluation_shows_three_candidates_and_collapses_the_rest() -> None:
 def test_table_layout_keeps_player_zones_and_hand_meld_gap_explicit() -> None:
     css = table_css()
     assert "--hand-meld-gap" in css
+    assert "aspect-ratio:1 / 1" in css
+    assert "ma-river-rows-4" in css
     assert ".ma-river-top" in css and ".ma-river-bottom" in css
     assert ".ma-melds-top" in css and ".ma-melds-bottom" in css
     assert ".ma-center" in css and ".ma-legend" in css
     html = render_table_html(_scene(), ASSETS)
     assert "ma-player-area" in html and "ma-hand-area" in html
     assert "ma-meld-area" in html and "ma-river-area" in html
+
+
+def test_river_uses_rows_based_on_discard_count() -> None:
+    scene = _scene()
+    scene["public"]["rivers"][0] = [{"pai": "1m"}] * 13
+    html = render_table_html(scene, ASSETS)
+    assert "ma-river-rows-3" in html
