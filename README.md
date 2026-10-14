@@ -88,6 +88,30 @@ AI一致率と低推奨行動率は評価条件ごとに集計されます。低
 
 データベース、レビューJSON、個人牌譜、認証情報、モデル重みはGitへ追加しないでください。
 
+## Phase 1.5-B: 天鳳 `.mjlog` のローカル取り込み
+
+天鳳公式ページから手動保存した `.mjlog` または gzip XML のみを入力にできます。雀魂・天鳳サーバーへのアクセスやログインは行いません。入力ファイルは読み取り専用で扱い、Converter出力と解析結果はGit管理外の出力先へ保存します。
+
+単一ファイルの例:
+
+```bash
+export PATH="$PWD/.venv-mortal/bin:$PATH"
+.venv/bin/mahjong-analyzer analyze-tenhou path/to/game.mjlog \
+  --player-id 3 \
+  --database local_data/mahjong_analyzer.sqlite3 \
+  --converter-exe /path/to/mahjong-replay-converter \
+  --reviewer-exe /path/to/mjai-reviewer \
+  --mortal-exe /path/to/Mortal/mortal/mortal \
+  --mortal-cfg /path/to/Mortal/mortal/config.toml \
+  --python-path /path/to/Mortal/mortal \
+  --model-tag mortal4-b40c192-t26082106 \
+  --output-dir local_data/tenhou-analysis
+```
+
+複数ファイルはディレクトリを指定します。既存レビューと、ゲームIDまたは入力ログ/MJAIログ・座席・reviewerバージョン・温度・モデル条件が一致する対局は、Mortal起動前にスキップします。結果には入力数、検出数、新規解析数、重複スキップ数、失敗数、登録判断数がJSONで表示されます。
+
+Converter v0.2.3の暗槓表記だけは、mjai-reviewer 1.5.10の期待するマーカー位置と異なるため、解析用コピーに限って厳密に正規化します。未知の表記は拒否し、元の `.mjlog` とConverter原出力は変更しません。
+
 ## 今後の予定
 
 1. Mortalとmjai-reviewerの動作検証（完了・条件付き）

@@ -594,7 +594,7 @@ MAHJONG_REPLAY_CONVERTER_CONFIG_DIR=/private/tmp/.../config \
 
 Converterの出力はTenhou/6 JSONとして生成されたが、暗槓2件が`a24242424`・`a34343434`の形式だった。mjai-reviewer 1.5.10のTenhou/6パーサーは暗槓マーカーを4枚目位置（例：`242424a24`）に要求するため、元ファイルとConverter出力を保持したまま、解析用コピーの2箇所だけマーカー位置を補正した。この互換性補正は一回限りの検証処理であり、変換器本体やプロジェクトの解析コードは変更していない。
 
-補正前のJSONをmjai-reviewerへ渡した場合は`invalid tile string: "a2"`で失敗した。補正後はMJAI JSON LinesとレビューJSONの生成に成功した。Converter v0.2.3とmjai-reviewer 1.5.10の暗槓表記互換性は未解決の改善課題として残す。
+補正前のJSONをmjai-reviewerへ渡した場合は`invalid tile string: "a2"`で失敗した。補正後はMJAI JSON LinesとレビューJSONの生成に成功した。当時はConverter v0.2.3とmjai-reviewer 1.5.10の暗槓表記互換性が未解決の改善課題だったが、Phase 1.5-Bで解析前アダプターを追加した。
 
 ### Mortal解析とSQLite保存
 
@@ -634,7 +634,7 @@ export PATH="$PWD/.venv-mortal/bin:$PATH"
 ### 発生した問題と未解決事項
 
 - Converter CLIの初回実行では、最近使ったファイルの保存先をユーザーのApplication Supportへ作成しようとして権限エラーになった。設定ディレクトリを`MAHJONG_REPLAY_CONVERTER_CONFIG_DIR`で一時領域へ指定することで解決した。
-- Converter v0.2.3の暗槓Tenhou/6表記とmjai-reviewer 1.5.10の期待形式が一致しない。現時点では解析前の一時補正が必要であり、一般化した変換機能としては未実装。
+- Converter v0.2.3の暗槓Tenhou/6表記とmjai-reviewer 1.5.10の期待形式が一致しない。Phase 1.5-Bで、解析前の一時コピーに限定した一般化補正を実装した。
 - 個人牌譜、変換JSON、MJAI、レビューJSON、SQLiteはプロジェクト内のGit管理外領域に保存している。公開ドキュメントにはプレイヤー名・個別局面・認証情報を記録していない。
 - MortalのCPU解析は成功したが、MPS経路、他ルール、他モデルでの結果は未検証。
 
@@ -645,3 +645,75 @@ export PATH="$PWD/.venv-mortal/bin:$PATH"
 ```
 
 結果は19件成功。入力形式確認、ConverterによるTenhou/6 JSON生成、mjai-reviewer/Mortal実解析、JSONとSQLiteの指標照合、同一入力の重複防止を確認した。天鳳公式サイトへの追加通信は行っていない。
+
+## 15. Phase 1.5-B：天鳳 `.mjlog` 自動取り込み・互換性補正（2026-10-14）
+
+### 実施範囲
+
+Phase 0-Cで確認したConverter v0.2.3、mjai-reviewer 1.5.10、Mortalの実行ファイルを再利用し、ローカルの`.mjlog`だけを入力にする経路を追加した。雀魂・天鳳サーバー、認証、共有URL、自動取得にはアクセスしていない。既存の個人牌譜、MJAI、レビューJSON、SQLiteはGit管理外のまま保持した。
+
+### Tenhou/6イベント互換性調査
+
+Converter v0.2.3の監査済みソースと、mjai-reviewer 1.5.10の`convlog/src/conv.rs`およびTenhouログパーサーを比較した。次の「Converter形式」はConverterがMJAIからTenhou/6へ出力する形式、「reviewer形式」はmjai-reviewer 1.5.10が受理するマーカー位置である。
+
+| イベント | Converter出力の要点 | reviewerの期待 | 判定・保持性 |
+|---|---|---|---|
+| 暗槓 | `a` + 4枚、例 `a24242424` | `4枚目の直前`、例 `242424a24` | 構文不一致。アダプターでマーカーだけ移動し、4牌は保持 |
+| 加槓 | `k`と4枚、既存ポンの出所に応じて`k`位置が0/2/4 | `k`位置0/2/4 | ソース上、一致。意味は牌と出所を保持 |
+| 大明槓 | `m`位置0/2/6と4枚 | `m`位置0/2/6 | ソース上、一致。鳴いた相手を保持 |
+| チー | `c`位置0と3枚 | `c`位置0、7文字 | ソース上、一致。チーは上家からのみ受理 |
+| ポン | `p`位置0/2/4と3枚 | `p`位置0/2/4、7文字 | ソース上、一致。出所を位置で保持 |
+| リーチ宣言・成立 | `rNN`を打牌列へ出力 | `rNN`をリーチ打牌として解釈し、直後の成立イベントを生成 | ソース上、一致。供託は局結果/点数差分側で保持 |
+| ツモ切り | Tenhou/6の`60`（内部ではTsumogiri） | `60`をツモ切りとして後続ツモ牌で補完 | ソース上、一致 |
+| 赤ドラ | Tenhou tile code 51/52/53 | 同じ牌コードを赤牌として変換 | ソース上、一致。実牌譜で赤牌を含むことも確認済み |
+| 和了 | 結果配列の`和了`、点数差分、和了者/放銃者、詳細 | `Hora`と点数差分へ変換 | ソース上、一致。元結果の詳細を保持 |
+| 流局 | 結果配列の流局状態と点数差分 | `Ryukyoku`と点数差分へ変換 | ソース上、一致 |
+| 点数移動 | 結果配列の4人分差分 | `score_deltas`として保持 | ソース上、一致 |
+
+加槓・大明槓・チー・ポン・リーチ・ツモ切り・和了・流局・赤牌について、mjai-reviewer付属の合成/回帰入力19件を`--no-review`で変換し、全件成功した。これはConverterの全分岐を実牌譜で再現したことを意味しないため、Converter出力と各イベントの意味の完全な網羅検証は未完了である。一方、mjai-reviewer側のパーサーが各形式を受理できることはローカルで確認した。
+
+### 互換性アダプター
+
+`src/mahjong_analyzer/compat.py`を追加した。入力Tenhou/6をディープコピーし、アクション欄の型、牌コード、マーカー、文字数を検証する。暗槓についてのみ、Converter v0.2.3の`aXXXXXXXX`を、同じ8桁の牌コードを保った`XXXXXXaXX`へ変換する。すでに`a`が位置6にある入力は再変換しない。未知のマーカー位置や牌コードはエラーにして、推測による補正をしない。元`.mjlog`、Converter原出力、変換後の意味上の牌順は変更せず、解析用Tenhou/6コピーだけを生成する。
+
+### `.mjlog`取り込み経路
+
+`mahjong-analyzer analyze-tenhou FILE_OR_DIR`を追加した。処理順は、gzip/XML検証、1半荘・四人麻雀の構造確認、Converterのローカル実行、互換性補正、mjai-reviewerの`--no-review`変換、重複判定、未登録時だけ既存の`analyze_log`（mjai-reviewer + Mortal + importer）である。subprocessは` shell=False`の引数配列で起動し、Converterの設定保存先は出力ディレクトリ配下へ隔離する。
+
+重複判定はMortal起動前に行う。ゲームID、元`.mjlog` SHA-256、変換後MJAIの正規化SHA-256を補助的に照合し、座席、reviewerバージョン、温度、モデルタグ、Mortalレビューの正常保存済み状態を条件にする。同じゲームでも座席や解析条件が違えば別レビューとして扱える。ディレクトリ入力では各ファイルを独立に処理し、入力数、検出数、新規解析数、重複スキップ数、失敗数、登録判断数をJSONで表示する。空の/不正な入力や複数対局を含むファイルは安全側にエラーとする。
+
+### 実機検証
+
+既存の天鳳実牌譜1件を、既存DBを変更せず一時DBで実行した。
+
+```sh
+.venv/bin/mahjong-analyzer analyze-tenhou data/raw/tenhou \
+  --player-id 3 --database /private/tmp/<temporary>.sqlite3 \
+  --converter-exe /private/tmp/<converter-venv>/bin/mahjong-replay-converter \
+  --reviewer-exe .phase0-work/mjai-reviewer/target/release/mjai-reviewer \
+  --mortal-exe .phase0-work/Mortal/mortal/mortal \
+  --mortal-cfg .phase0-work/Mortal/mortal/config.toml \
+  --python-path .phase0-work/Mortal/mortal \
+  --model-tag mortal4-b40c192-t26082106 \
+  --output-dir /private/tmp/<output>
+```
+
+初回は`input_files=1, detected_games=1, analyzed_games=1, skipped_duplicates=0, failures=0, registered_decisions=136`となり、一時DBにgames 1件、reviews 1件、decisions 136件が登録された。再実行は`analyzed_games=0, skipped_duplicates=1, failures=0, registered_decisions=0`となった。既存DBに対しては、旧実装時のゲームID表記が異なる状態でも、変換後MJAIの正規化ハッシュによりMortalを起動せず`skipped_duplicates=1`となり、既存のgames 1件・reviews 1件・decisions 136件を維持した。
+
+一時DBで生成されたレビューは、従来の手動補正版と同じく`total_reviewed=136`、`total_matches=103`、Mortal Rating `0.8974231516817629`であった。AI一致率、低推奨行動率はそれぞれ`103/136`、`30/136`（閾値`prob < 0.05`）である。これは使用モデル、温度、ルール、CPU実行条件に依存し、客観的な正解率・悪手率・失点を意味しない。
+
+### テスト
+
+- `.venv/bin/pytest -q`: 23件成功。
+- mjai-reviewer付属Tenhou/6回帰入力19件を`--no-review`でローカル変換: 19件成功。
+- 既存実牌譜の一時DB取り込み: 成功。
+- 同じ入力の再実行: Mortal前に1件スキップ、登録件数不変。
+- 既存DBへの再取り込み: Mortal前に1件スキップ、既存件数不変。
+- 天鳳サーバー、雀魂、Yostar、認証情報への通信: 実施していない。
+
+### 未解決事項
+
+- Converter v0.2.3の全イベントを、Converter自身の出力で個別に生成して意味比較する検証は未完了。今回の非暗槓イベントはソース比較とreviewer回帰入力での受理確認までである。
+- `games`の旧行には旧実装由来の`source_game_id`が残る場合がある。既存データを削除・初期化せずに検出するため、現実装はMJAIハッシュをフォールバックに使用する。
+- 1つの`.mjlog`に複数半荘が含まれる形式、三人麻雀、未対応のルール表記は未対応として拒否する。
+- 新しい実牌譜での第2段階検証は未実施。ユーザーが新しいファイルを提供した後に実行する。

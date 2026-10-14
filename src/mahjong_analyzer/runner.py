@@ -122,6 +122,7 @@ def analyze_log(
     played_at: str | None = None,
     game_type: str | None = None,
     rule_context: str | None = None,
+    source_sha256: str | None = None,
 ) -> AnalysisResult:
     if not 0 <= player_id <= 3:
         raise ValidationError("player_id must be between 0 and 3")
@@ -169,7 +170,8 @@ def analyze_log(
     except Exception as exc:
         raise AnalysisError("mjai-reviewer produced an invalid review JSON") from exc
     metadata = ImportMetadata(game_id=input_game_id, player_id=player_id,
-                              played_at=played_at, game_type=game_type, rule_context=rule_context)
+                              played_at=played_at, game_type=game_type, rule_context=rule_context,
+                              source_sha256=source_sha256)
     connection = connect(database_path)
     try:
         status = import_file(connection, review_path, metadata)

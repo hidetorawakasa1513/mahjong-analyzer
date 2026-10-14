@@ -3,7 +3,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 def connect(path: Path) -> sqlite3.Connection:
@@ -26,6 +26,7 @@ def initialize(connection: sqlite3.Connection) -> None:
             id INTEGER PRIMARY KEY,
             source TEXT NOT NULL,
             source_game_id TEXT,
+            source_sha256 TEXT,
             log_sha256 TEXT,
             played_at TEXT,
             game_type TEXT,
@@ -77,6 +78,9 @@ def initialize(connection: sqlite3.Connection) -> None:
         """
     )
     columns = {row[1] for row in connection.execute("PRAGMA table_info(reviews)")}
+    game_columns = {row[1] for row in connection.execute("PRAGMA table_info(games)")}
+    if "source_sha256" not in game_columns:
+        connection.execute("ALTER TABLE games ADD COLUMN source_sha256 TEXT")
     if "review_identity_sha256" not in columns:
         connection.execute("ALTER TABLE reviews ADD COLUMN review_identity_sha256 TEXT")
     connection.execute(

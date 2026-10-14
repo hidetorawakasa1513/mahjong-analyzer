@@ -10,6 +10,7 @@ from .importer import ImportMetadata, import_file
 from .report import format_summary, list_games, show_game, summary
 from .runner import AnalysisConfig, analyze_log
 from .schema import connect, initialize
+from .tenhou import analyze_tenhou_path
 
 
 def _db(args: argparse.Namespace) -> sqlite3.Connection:
@@ -68,6 +69,20 @@ def build_parser() -> argparse.ArgumentParser:
     analyze.add_argument("--played-at")
     analyze.add_argument("--game-type")
     analyze.add_argument("--rule-context")
+    tenhou = sub.add_parser("analyze-tenhou", help="Convert local Tenhou mjlog files, review, and import them")
+    tenhou.add_argument("path", type=Path)
+    tenhou.add_argument("--player-id", type=int, required=True)
+    tenhou.add_argument("--database", default="local_data/mahjong_analyzer.sqlite3")
+    tenhou.add_argument("--converter-exe", type=Path, required=True)
+    tenhou.add_argument("--reviewer-exe", type=Path, required=True)
+    tenhou.add_argument("--mortal-exe", type=Path, required=True)
+    tenhou.add_argument("--mortal-cfg", type=Path, required=True)
+    tenhou.add_argument("--model-tag", required=True)
+    tenhou.add_argument("--output-dir", type=Path, default=Path("local_data/tenhou-analysis"))
+    tenhou.add_argument("--temperature", type=float, default=0.1)
+    tenhou.add_argument("--timeout", type=int, default=1800)
+    tenhou.add_argument("--python-path", type=Path)
+    tenhou.add_argument("--game-id")
     return parser
 
 
@@ -150,6 +165,40 @@ def main(argv: list[str] | None = None) -> int:
             with _db(args) as connection:
                 print(format_summary(summary(connection, 0.05)))
             return 0
+        except (OSError, AnalyzerError, ValueError) as exc:
+            print(f"error: {exc}")
+            return 1
+    if args.command == "analyze-tenhou":
+        try:
+            result = analyze_tenhou_path(
+                args.path,
+                Path(args.database),
+                args.player_id,
+                converter_executable=args.converter_exe,
+                analysis_config=AnalysisConfig(
+                    reviewer_executable=args.reviewer_exe,
+                    mortal_executable=args.mortal_exe,
+                    mortal_config=args.mortal_cfg,
+                    output_dir=args.output_dir / "analysis",
+                    temperature=args.temperature,
+                    timeout_seconds=args.timeout,
+                    python_path=args.python_path,
+                ),
+                output_dir=args.output_dir,
+                model_tag=args.model_tag,
+                game_id=args.game_id,
+                timeout=args.timeout,
+            )
+            print(json.dumps({
+                "input_files": result.input_files,
+                "detected_games": result.detected_games,
+                "analyzed_games": result.analyzed_games,
+                "skipped_duplicates": result.skipped_duplicates,
+                "failures": result.failures,
+                "registered_decisions": result.registered_decisions,
+                "errors": list(result.errors),
+            }, ensure_ascii=False))
+            return 1 if result.failures else 0
         except (OSError, AnalyzerError, ValueError) as exc:
             print(f"error: {exc}")
             return 1

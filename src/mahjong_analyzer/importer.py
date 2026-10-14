@@ -21,6 +21,7 @@ class ImportMetadata:
     played_at: str | None = None
     game_type: str | None = None
     rule_context: str | None = None
+    source_sha256: str | None = None
 
 
 @dataclass(frozen=True)
@@ -229,7 +230,7 @@ def normalize_review(raw: bytes, metadata: ImportMetadata = ImportMetadata()) ->
     return NormalizedReview(
         metadata=ImportMetadata(source=metadata.source, game_id=metadata.game_id, player_id=player_id,
                                 played_at=metadata.played_at, game_type=game_type,
-                                rule_context=rule_context),
+                                rule_context=rule_context, source_sha256=metadata.source_sha256),
         source_game_id=source_game_id,
         log_sha256=log_sha256,
         engine=engine,
@@ -272,11 +273,12 @@ def import_review(connection: sqlite3.Connection, normalized: NormalizedReview) 
         if game is None:
             cursor = connection.execute(
                 """
-                INSERT INTO games(source, source_game_id, log_sha256, played_at, game_type,
+                INSERT INTO games(source, source_game_id, source_sha256, log_sha256, played_at, game_type,
                                    rule_context, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (normalized.metadata.source, normalized.source_game_id, normalized.log_sha256,
+                (normalized.metadata.source, normalized.source_game_id, normalized.metadata.source_sha256,
+                 normalized.log_sha256,
                  normalized.metadata.played_at, normalized.game_type, normalized.rule_context, _now()),
             )
             game_id = int(cursor.lastrowid)
@@ -285,6 +287,16 @@ def import_review(connection: sqlite3.Connection, normalized: NormalizedReview) 
                     game["log_sha256"] != normalized.log_sha256):
                 raise ConflictError(
                     f"game ID {normalized.source_game_id} has conflicting log content"
+                )
+            if game["source_sha256"] and normalized.metadata.source_sha256 and \
+                    game["source_sha256"] != normalized.metadata.source_sha256:
+                raise ConflictError(
+                    f"game ID {normalized.source_game_id} has conflicting source file content"
+                )
+            if not game["source_sha256"] and normalized.metadata.source_sha256:
+                connection.execute(
+                    "UPDATE games SET source_sha256 = ? WHERE id = ?",
+                    (normalized.metadata.source_sha256, game["id"]),
                 )
             game_id = int(game["id"])
         cursor = connection.execute(
