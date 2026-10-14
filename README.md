@@ -183,6 +183,34 @@ test -s local_data/config.json && echo "Tenhou local identity config exists"
 
 `decision_contexts`には、局・本場・巡目、本人の手牌と副露、Reviewerの向聴数、成立済み他家リーチ、判断直前の4人の点数、順位・点差、行動カテゴリ、MJAIイベント位置、抽出器バージョンを保存します。抽出器を更新するときは`--extractor-version`を変更して旧結果を保持します。個人牌譜、レビューJSON、SQLiteはGit管理対象外です。
 
+## Phase 2-B 第2段階: 状況別集計と判断検索
+
+保存済みの`decision_contexts`を読み取り、Mortalを再実行せずに状況別の集計と複数条件検索を行えます。集計CLIは既存DBを初期化せず、読み取り専用で接続します。
+
+```bash
+.venv/bin/mahjong-analyzer analyze-contexts \
+  --database local_data/mahjong_analyzer.sqlite3 \
+  --dimension turn_phase --format text
+
+.venv/bin/mahjong-analyzer analyze-contexts \
+  --database local_data/mahjong_analyzer.sqlite3 \
+  --dimension score_diff --score-diff-target top \
+  --score-bins 0,4000,8000,12000 --format json
+```
+
+利用できる集計軸は、全体、巡目帯、向聴数、他家リーチ人数、順位、点数差、行動種類、場風、親子、局番号、本場です。巡目帯は初期値を序盤1〜6・中盤7〜12・終盤13巡目以降とし、`--early-end`と`--mid-end`で変更できます。点数差は符号付きで、トップとの差は「離されている」場合を負値として扱います。区間境界は`--score-bins`で変更できます。
+
+条件検索は指定した条件をANDで適用します。例えば次は「中盤・3位・トップとの差が8,000点以上・他家リーチ1人・南場」を検索します。
+
+```bash
+.venv/bin/mahjong-analyzer search-decisions \
+  --database local_data/mahjong_analyzer.sqlite3 \
+  --turn-phase mid --rank 3 --filter-score-target top --score-max -8000 \
+  --riichi-count 1 --bakaze S --format json --limit 100
+```
+
+検索結果には`decision_id`、局・イベント位置、行動種類、本人の選択、Mortal第一候補、選択行動の推奨確率、評価条件を含めます。`--offset`と`--limit`で安定したページングができます。AI一致率と低推奨行動率は有効な値だけを分母にし、分母0は`null`です。Mortal Ratingは評価条件ごとのレビュー単位で返し、状況別・対局間で平均しません。同点順位は天鳳固有ルールが未確定のため`unknown`として扱います。`none`判断は保存された判断として集計しますが、見送り機会の新規推定は行いません。
+
 ## 今後の予定
 
 1. Mortalとmjai-reviewerの動作検証（完了・条件付き）

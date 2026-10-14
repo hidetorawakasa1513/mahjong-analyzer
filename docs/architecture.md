@@ -51,6 +51,7 @@ XML/gzip validation → Mahjong-Replay-Converter → compatibility adapter
 - `mahjong_analyzer.tenhou`: local `.mjlog` inspection, conversion, preflight duplicate detection, batch counts, and reuse of `runner`.
 - `mahjong_analyzer.workflow`: inbox processing, hash-verified organization, failure sidecars, retry handling, and reviewed-file migration.
 - `mahjong_analyzer.identity`: local identity configuration, exact decoded player-name matching, manual-seat cross-checking, and `tw=` view validation.
+- `mahjong_analyzer.analytics`: read-only context aggregation, parameterized multi-condition decision search, configurable turn/score buckets, and structured JSON results for future UI reuse.
 
 ## Data model
 
@@ -81,3 +82,9 @@ The default is `local_data/mahjong_analyzer.sqlite3`, which is ignored by Git. U
 `source_event_index`はレビューJSON内のMJAI配列の論理位置で、`source_round_event_index`は局内位置である。実イベントは順序・行動内容・`tiles_left`を使って対応づける。`none`は非行動機会として対応できた場合だけ`mapping_kind=non_action_opportunity`で保存し、見送りの分母へ自動追加しない。
 
 `decision_contexts`には、判断直前の本人手牌・副露、Reviewer向聴数、`reach_accepted`に基づく成立済みリーチ、局開始点からリーチ支払いと結果差分を順序適用した4人の点数、スコア降順の競技順位と点差を保存する。同点順位の天鳳固有ルールは未確定のため、採用ポリシーを抽出器の記録対象とし、将来変更可能にする。復元不能な値はNULLと状態理由を保存する。
+
+## Phase 2-B 第2段階
+
+`analytics`は`games`、`reviews`、`decisions`、`decision_contexts`を結合して読み取り、評価条件（エンジン、reviewer、モデル、GRP、温度、ルール）ごとに結果を分離する。`analyze-contexts`は状況別集計、`search-decisions`はAND条件検索を提供する。SQL値はパラメータバインディングし、動的な列名は許可リストから選択する。
+
+AI一致率と低推奨行動率は有効な分母を個別に計算し、分母0はNULLで返す。Ratingはレビュー単位の`ratings_by_review`として保持し、状況別に平均しない。順位は同点を`unknown`とし、点数差は`top`を`gap_to_first`へ写像して符号を維持する。検索結果は`decision_id`と`source_event_index`を含み、Phase 2-Cの局面復習から再利用できる。

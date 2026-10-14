@@ -5,6 +5,14 @@ import json
 import sqlite3
 from pathlib import Path
 
+from .analytics import (
+    DIMENSIONS,
+    SCORE_TARGETS,
+    ContextFilters,
+    aggregate_contexts,
+    parse_score_bins,
+    search_decisions,
+)
 from .errors import AnalyzerError
 from .context import extract_contexts_path
 from .identity import load_tenhou_identity
@@ -38,6 +46,68 @@ def _add_import_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--rule-context")
 
 
+def _add_context_filter_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--extractor-version", default="phase2-context-v1")
+    parser.add_argument("--turn-min", type=int)
+    parser.add_argument("--turn-max", type=int)
+    parser.add_argument("--turn-phase", choices=("early", "mid", "late", "unknown"))
+    parser.add_argument("--shanten", type=int)
+    parser.add_argument("--shanten-group", choices=("tenpai", "one", "two", "three_plus", "negative", "unknown"))
+    parser.add_argument("--riichi-count", type=int)
+    parser.add_argument("--riichi-min", type=int)
+    parser.add_argument("--riichi-max", type=int)
+    parser.add_argument("--rank", choices=("1", "2", "3", "4", "unknown"))
+    parser.add_argument("--filter-score-target", choices=SCORE_TARGETS)
+    parser.add_argument("--score-min", type=int)
+    parser.add_argument("--score-max", type=int)
+    parser.add_argument("--action-category")
+    parser.add_argument("--bakaze")
+    parser.add_argument("--kyoku", type=int)
+    parser.add_argument("--honba", type=int)
+    parser.add_argument("--dealer", choices=("yes", "no"))
+    parser.add_argument("--model-tag")
+    parser.add_argument("--reviewer-version")
+    parser.add_argument("--temperature", type=float)
+    parser.add_argument("--is-equal", choices=("yes", "no"))
+    parser.add_argument("--probability-min", type=float)
+    parser.add_argument("--probability-max", type=float)
+
+
+def _context_filters(args: argparse.Namespace) -> ContextFilters:
+    rank = None if args.rank in (None, "unknown") else int(args.rank)
+    return ContextFilters(
+        extractor_version=args.extractor_version,
+        turn_min=args.turn_min, turn_max=args.turn_max, turn_phase=args.turn_phase,
+        shanten=args.shanten, shanten_group=args.shanten_group,
+        riichi_count=args.riichi_count, riichi_min=args.riichi_min, riichi_max=args.riichi_max,
+        rank=rank, rank_unknown=args.rank == "unknown",
+        score_target=args.filter_score_target, score_min=args.score_min, score_max=args.score_max,
+        action_category=args.action_category, bakaze=args.bakaze, kyoku=args.kyoku, honba=args.honba,
+        is_dealer=None if args.dealer is None else args.dealer == "yes",
+        model_tag=args.model_tag, reviewer_version=args.reviewer_version,
+        temperature=args.temperature,
+        is_equal=None if args.is_equal is None else args.is_equal == "yes",
+        probability_min=args.probability_min, probability_max=args.probability_max,
+    )
+
+
+def _print_context_result(value: object, output_format: str) -> None:
+    if output_format == "json":
+        print(json.dumps(value, ensure_ascii=False, indent=2))
+        return
+    if isinstance(value, dict) and "items" in value:
+        print(f"total={value['total']} offset={value['offset']} limit={value['limit']}")
+        for item in value["items"]:
+            print(f"decision_id={item['decision_id']} round={item['round_index']} "
+                  f"event={item['source_event_index']} action={item['action_category']} "
+                  f"prob={item['actual_probability']} equal={item['is_equal']}")
+        return
+    for item in value:
+        print(f"group={item['group']} decisions={item['decision_count']} "
+              f"games={item['game_count']} agreement={item['ai_agreement_rate']} "
+              f"low_probability={item['low_recommendation_rate']}")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="mahjong-analyzer")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -61,6 +131,23 @@ def build_parser() -> argparse.ArgumentParser:
     contexts.add_argument("path", type=Path)
     contexts.add_argument("--database", default="local_data/mahjong_analyzer.sqlite3")
     contexts.add_argument("--extractor-version", default="phase2-context-v1")
+    analyze_contexts = sub.add_parser("analyze-contexts", help="Aggregate saved decision contexts")
+    analyze_contexts.add_argument("--database", default="local_data/mahjong_analyzer.sqlite3")
+    analyze_contexts.add_argument("--dimension", choices=DIMENSIONS, default="all")
+    analyze_contexts.add_argument("--score-diff-target", choices=SCORE_TARGETS)
+    analyze_contexts.add_argument("--score-bins", default="0,4000,8000,12000")
+    analyze_contexts.add_argument("--early-end", type=int, default=6)
+    analyze_contexts.add_argument("--mid-end", type=int, default=12)
+    analyze_contexts.add_argument("--format", choices=("json", "text"), default="json")
+    _add_context_filter_options(analyze_contexts)
+    search = sub.add_parser("search-decisions", help="Search saved decision contexts")
+    search.add_argument("--database", default="local_data/mahjong_analyzer.sqlite3")
+    search.add_argument("--offset", type=int, default=0)
+    search.add_argument("--limit", type=int, default=100)
+    search.add_argument("--early-end", type=int, default=6)
+    search.add_argument("--mid-end", type=int, default=12)
+    search.add_argument("--format", choices=("json", "text"), default="json")
+    _add_context_filter_options(search)
     analyze = sub.add_parser("analyze-log", help="Review a local Tenhou/6 JSON and import it")
     analyze.add_argument("path", type=Path)
     analyze.add_argument("--player-id", type=int, required=True)
@@ -306,6 +393,37 @@ def main(argv: list[str] | None = None) -> int:
             }, ensure_ascii=False))
             return 0
         except (OSError, AnalyzerError, ValueError) as exc:
+            print(f"error: {exc}")
+            return 1
+    if args.command == "analyze-contexts":
+        try:
+            filters = _context_filters(args)
+            score_bins = parse_score_bins(args.score_bins)
+            # Analytics is intentionally read-only: do not run initialize(), which may
+            # write schema metadata to an otherwise existing production database.
+            with connect(Path(args.database)) as connection:
+                result = aggregate_contexts(
+                    connection, dimension=args.dimension, filters=filters,
+                    early_end=args.early_end, mid_end=args.mid_end,
+                    score_target=args.score_diff_target, score_bins=score_bins,
+                )
+            _print_context_result(result, args.format)
+            return 0
+        except (AnalyzerError, ValueError) as exc:
+            print(f"error: {exc}")
+            return 1
+    if args.command == "search-decisions":
+        try:
+            filters = _context_filters(args)
+            with connect(Path(args.database)) as connection:
+                result = search_decisions(
+                    connection, filters, offset=args.offset, limit=args.limit,
+                    early_end=args.early_end, mid_end=args.mid_end,
+                )
+            _print_context_result({"total": result.total, "offset": result.offset,
+                                   "limit": result.limit, "items": list(result.items)}, args.format)
+            return 0
+        except (AnalyzerError, ValueError) as exc:
             print(f"error: {exc}")
             return 1
     return 2
