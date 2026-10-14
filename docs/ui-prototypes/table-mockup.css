@@ -54,7 +54,7 @@ button, select { font: inherit; }
 
 .table-card {
   position: relative;
-  min-height: 760px;
+  min-height: 730px;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 18px;
@@ -81,10 +81,10 @@ button, select { font: inherit; }
   font-weight: 700;
 }
 
-.seat-top { top: 24px; left: 50%; transform: translateX(-50%); }
-.seat-left { top: 50%; left: 26px; transform: translateY(-50%); writing-mode: vertical-rl; }
-.seat-right { top: 50%; right: 26px; transform: translateY(-50%); writing-mode: vertical-rl; }
-.seat-bottom { bottom: 140px; left: 50%; transform: translateX(-50%); }
+.seat-top { top: 20px; left: 50%; transform: translateX(-50%); }
+.seat-left { top: 50%; left: 20px; transform: translateY(-50%); }
+.seat-right { top: 50%; right: 20px; transform: translateY(-50%); }
+.seat-bottom { bottom: 108px; left: 50%; transform: translateX(-50%); }
 
 .river {
   position: absolute;
@@ -92,21 +92,19 @@ button, select { font: inherit; }
   grid-template-columns: repeat(6, var(--tile-w));
   grid-auto-rows: var(--tile-h);
   gap: 3px;
-  justify-content: center;
-  align-content: center;
+  justify-content: start;
+  align-content: start;
   padding: 8px;
   border-radius: 8px;
   background: rgba(2, 38, 67, .28);
 }
 
-.river-top { top: 56px; left: 50%; width: 340px; transform: translateX(-50%); }
-.river-bottom { bottom: 70px; left: 50%; width: 340px; transform: translateX(-50%); }
-.river-left, .river-right { top: 50%; width: 238px; height: 265px; transform: translateY(-50%); }
-.river-left { left: 45px; }
-.river-right { right: 45px; }
-
-.river-left .tile, .river-right .tile { transform: rotate(90deg); }
-.river-bottom .tile { transform: rotate(180deg); }
+.river-top, .river-bottom { width: 340px; height: 130px; }
+.river-top { top: 54px; left: 50%; transform: translateX(-50%) rotate(180deg); }
+.river-bottom { bottom: 168px; left: 50%; transform: translateX(-50%); }
+.river-left, .river-right { width: 340px; height: 130px; top: 50%; }
+.river-left { left: 54px; transform: translateY(-50%) rotate(90deg); }
+.river-right { right: 54px; transform: translateY(-50%) rotate(-90deg); }
 
 .tile {
   display: block;
@@ -124,29 +122,28 @@ button, select { font: inherit; }
   z-index: 2;
   display: flex;
   gap: 4px;
-  padding: 5px;
+  padding: 4px;
   border-radius: 5px;
   background: rgba(2, 29, 51, .4);
 }
 
 .melds .tile { width: 30px; height: 40px; }
-.melds-top { top: 235px; left: 50%; transform: translateX(-50%); }
-.melds-left { left: 278px; top: 50%; transform: translateY(-50%); }
-.melds-right { right: 278px; top: 50%; transform: translateY(-50%); }
-.melds-bottom { left: 50%; bottom: 15px; transform: translateX(-50%); }
-.melds-left .tile, .melds-right .tile { transform: rotate(90deg); }
-.melds-bottom .tile { transform: rotate(180deg); }
+/* Each meld group is attached to the player's hand side, not inserted into the river. */
+.melds-top { top: 212px; left: calc(50% - 178px); transform: rotate(180deg); }
+.melds-left { left: 286px; top: calc(50% + 92px); transform: rotate(90deg); }
+.melds-right { right: 286px; top: calc(50% - 132px); transform: rotate(-90deg); }
+.melds-bottom { left: calc(50% + 285px); bottom: 102px; }
 
 .center-info {
   position: absolute;
   z-index: 4;
   top: 50%; left: 50%;
-  width: 260px;
-  min-height: 190px;
+  width: 220px;
+  min-height: 152px;
   transform: translate(-50%, -50%);
   display: grid;
   place-items: center;
-  padding: 18px;
+  padding: 12px;
   border: 2px solid var(--accent);
   border-radius: 10px;
   background: rgba(5, 103, 146, .95);
@@ -154,7 +151,7 @@ button, select { font: inherit; }
   box-shadow: 0 10px 24px rgba(0, 0, 0, .22);
 }
 
-.center-info h2 { margin: 0; font-size: 26px; }
+.center-info h2 { margin: 0; font-size: 22px; }
 .center-info p { margin: 3px 0; color: #e5f8ff; }
 .center-info .round-stat { color: var(--accent); font-size: 13px; }
 .score-row { display: flex; justify-content: center; gap: 14px; color: var(--muted); font-size: 12px; }
@@ -162,7 +159,7 @@ button, select { font: inherit; }
 .hand-zone {
   position: absolute;
   z-index: 5;
-  bottom: 6px; left: 50%;
+  bottom: 26px; left: 50%;
   transform: translateX(-50%);
   display: flex;
   align-items: end;
@@ -179,7 +176,7 @@ button, select { font: inherit; }
 
 .tile-legend {
   position: absolute;
-  left: 25px; bottom: 25px;
+  left: 25px; bottom: 12px;
   color: var(--muted);
   font-size: 12px;
 }
@@ -225,11 +222,12 @@ button:hover { background: #12557e; }
   body { min-width: 0; }
   .app-shell { width: calc(100vw - 16px); padding: 8px; }
   .workspace { grid-template-columns: minmax(650px, 1fr) 270px; gap: 10px; }
-  .table-card { min-height: 690px; }
+  .table-card { min-height: 660px; }
   :root { --tile-w: 34px; --tile-h: 46px; }
   .hand-zone .tile { width: 39px; height: 52px; }
-  .river-left { left: 25px; }
-  .river-right { right: 25px; }
-  .melds-left { left: 230px; }
-  .melds-right { right: 230px; }
+  .river-left { left: 40px; }
+  .river-right { right: 40px; }
+  .melds-left { left: 235px; }
+  .melds-right { right: 235px; }
+  .melds-bottom { left: calc(50% + 235px); }
 }
