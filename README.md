@@ -249,6 +249,17 @@ test -s local_data/config.json && echo "Tenhou local identity config exists"
 
 候補には`decision_id`、局面要約、行動、Mortal第一候補、AI一致、不一致、推奨確率、MJAIイベント位置、復元状態が含まれます。候補の詳細は既存の`show-decision --decision-id ID`で確認してください。推奨確率は復習優先度の参考値であり、損失額や客観的な悪手スコアではありません。`none`判断も除外せず、非行動判断として一覧に含めます。
 
+## Phase 3-A: Streamlitダッシュボード
+
+ダッシュボード用依存関係はoptional dependencyとして分離しています。
+
+```bash
+.venv/bin/pip install -e '.[dashboard]'
+.venv/bin/streamlit run app.py --server.address 127.0.0.1
+```
+
+ホーム、状況別分析、復習候補、局面詳細の4画面を提供します。SQLiteは読み取り専用で開き、DBが存在しない場合は作成せずエラーを表示します。分析画面の条件は復習候補へ引き継がれ、候補の`decision_id`から局面詳細を表示できます。牌画像・麻雀卓表示・復習メモはPhase 3-Aの対象外です。
+
 ## 今後の予定
 
 1. Mortalとmjai-reviewerの動作検証（完了・条件付き）

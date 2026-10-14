@@ -1,0 +1,50 @@
+# Phase 3-A：Streamlitダッシュボード設計
+
+## 目的
+
+Phase 2-B〜2-Cで実装した集計・復習候補・局面復元APIを、ローカルのStreamlit画面から利用する。ダッシュボードは分析結果の閲覧と復習対象の選択を担い、Mortalの実行や牌譜の取得は行わない。
+
+## 画面構成
+
+### ホーム
+
+`games`、`reviews`、`decisions`と既存の`summary()`から、解析済み半荘数、対象判断数、AI一致率、低推奨確率の選択率、AI不一致数を表示する。評価条件ごとの指標とMortal Ratingもレビュー単位で表示し、異なるモデル・温度・ルール条件を無条件に混ぜない。
+
+### 状況別分析
+
+`analytics.aggregate_contexts()`を呼び出し、巡目帯、向聴数、他家リーチ人数、順位、点数差、行動種類、場風、親子、局番号、本場を表示する。点数差の対象と区間は画面から指定でき、符号付きの値を維持する。「この条件で復習候補へ」操作で同じ`ContextFilters`をセッション状態へ保存する。
+
+### 復習候補
+
+`review_candidates.list_review_candidates()`を呼び出し、低推奨確率順、不一致優先、新しい対局順を選択する。既存の条件フィルタを再利用し、`none`も除外しない。候補の`decision_id`を選択して局面詳細へ遷移する。日時不明時はファイル更新日時を使わずAPIの安定順に従う。
+
+### 局面詳細
+
+`review.get_review_scene()`を呼び出し、判断直前の手牌・副露、公開河、公開副露、ドラ表示牌、リーチ状態、点数、Mortal候補をテキストとJSONで表示する。通常行動はイベント処理前、`none`は参照した公開打牌後の状態であることを表示する。順位は同点時に未確定とする。他家の非公開手牌や未公開の山牌は表示しない。
+
+## 状態管理
+
+画面は`st.session_state["page_selector"]`で切り替える。ボタン遷移は`navigation_target`を一時的に保持し、Streamlitウィジェットのキー衝突を避ける。状況別分析から候補一覧へ遷移するときは`candidate_filters`を保存し、候補から局面詳細へは`selected_decision_id`を保存する。候補条件の変更時はページングの開始位置を0へ戻す設計をPhase 3-Bで強化する。現在のMVPではページ位置は画面入力で明示する。
+
+## データ接続と安全性
+
+`dashboard.data.connect_readonly()`はSQLite URIの`mode=ro`と`PRAGMA query_only=ON`で既存DBを開く。ファイルが存在しない場合は作成せず、画面に不足を表示する。レビューJSONと元牌譜のルートは画面のローカル設定欄から指定し、外部通信やクラウドAPIは使用しない。
+
+## 起動
+
+```bash
+.venv/bin/pip install -e '.[dashboard]'
+.venv/bin/streamlit run app.py --server.address 127.0.0.1
+```
+
+デフォルトは`local_data/mahjong_analyzer.sqlite3`、`local_data`、`data/raw/tenhou`を参照する。実データをGit管理対象へ移動・複製しない。
+
+## 今後のPhase 3-B以降
+
+- Streamlit標準テストまたはブラウザ操作による画面遷移テスト
+- 分析条件を保持したまま候補一覧のページを自動リセット
+- 表の行選択と局面詳細の戻る操作の改善
+- 牌表記から安全に牌画像へ変換する表示層
+- 河・副露・ドラ・手牌を卓面レイアウトへ配置
+- 復習メモや復習済み状態（別途スキーマ設計が必要）
+- モデル条件の選択UIと比較表示

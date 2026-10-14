@@ -11,6 +11,7 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest>=8.3,<9"]
+dashboard = ["streamlit>=1.39,<2"]
 
 [project.scripts]
 mahjong-analyzer = "mahjong_analyzer.cli:main"

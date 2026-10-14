@@ -54,6 +54,7 @@ XML/gzip validation → Mahjong-Replay-Converter → compatibility adapter
 - `mahjong_analyzer.analytics`: read-only context aggregation, parameterized multi-condition decision search, configurable turn/score buckets, and structured JSON results for future UI reuse.
 - `mahjong_analyzer.review`: decision-id based scene retrieval, review JSON/MJAI event replay, public-information reconstruction, and Mortal candidate packaging for future review UI.
 - `mahjong_analyzer.review_candidates`: reusable candidate listing with shared context filters, stable sorting, pagination, and review-scene identifiers.
+- `app.py` / `mahjong_analyzer.dashboard.data`: optional Streamlit read-only dashboard adapter. It delegates all calculations, candidate selection, and scene reconstruction to existing APIs.
 
 ## Data model
 
@@ -94,6 +95,10 @@ The default is `local_data/mahjong_analyzer.sqlite3`, which is ignored by Git. U
 ## Phase 2-C②
 
 `review_candidates.list_review_candidates()`は`analytics`の共通フィルタ・後処理を再利用し、`low-probability`、`disagreement`、`recent`の3モードで候補を返す。日時不明の対局はファイル更新時刻を使わず、対局ID・判断IDの安定順にフォールバックする。NULLの推奨確率は低確率順の末尾とする。不一致優先は保存済みの`is_equal`定義を使用し、`none`を除外しない。返却結果は`show-decision`へ渡せる`decision_id`を含む。
+
+## Phase 3-A
+
+Streamlitの`app.py`は、ホーム、状況別分析、復習候補、局面詳細を提供する薄い表示層である。`dashboard.data.connect_readonly()`はSQLite URIの`mode=ro`と`query_only`でDBを開き、既存APIの`summary`、`aggregate_contexts`、`list_review_candidates`、`get_review_scene`を呼び出す。DB、レビューJSON、元牌譜のパスはローカル画面から指定し、外部通信は行わない。画面状態は`st.session_state`でページ、分析条件、選択した`decision_id`を保持する。牌画像や卓面レイアウトは後続Phaseへ分離する。
 
 ## Phase 2-B 第2段階
 

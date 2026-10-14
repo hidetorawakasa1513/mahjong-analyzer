@@ -23,6 +23,7 @@ artifacts/
 reports/
 models/
 .phase0-work/
+.streamlit/
 *.sqlite
 *.sqlite3
 
