@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 47 63" role="img" aria-labelledby="title desc">
+  <title id="title">赤牌未収録</title>
+  <desc id="desc">麻雀王国47×63牌画セットに赤五が含まれていないため表示するプレースホルダー</desc>
+  <rect x="1" y="1" width="45" height="61" rx="4" fill="#fff7f5" stroke="#b6382e" stroke-width="1.5"/>
+  <path d="M8 8 L39 55 M39 8 L8 55" stroke="#b6382e" stroke-width="2" opacity=".35"/>
+  <text x="23.5" y="29" text-anchor="middle" font-family="sans-serif" font-size="7" font-weight="700" fill="#b6382e">赤五未収録</text>
+  <text x="23.5" y="40" text-anchor="middle" font-family="sans-serif" font-size="5" fill="#6b7378">素材確認待ち</text>
+</svg>

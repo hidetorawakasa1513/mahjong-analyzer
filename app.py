@@ -15,6 +15,7 @@ from mahjong_analyzer.dashboard.data import (
     load_dashboard_paths, scene_data,
 )
 from mahjong_analyzer.errors import AnalyzerError
+from mahjong_analyzer.tile_assets import tile_asset
 
 
 DIMENSION_LABELS = {
@@ -360,7 +361,46 @@ def _candidates(connection: Any, summaries: list[dict[str, Any]]) -> None:
             st.session_state["navigation_target"] = "decision"; st.rerun()
 
 
-def _decision(connection: Any, review_root: Path, source_root: Path) -> None:
+def _render_tiles(tile_ids: list[str] | tuple[str, ...] | None, asset_root: Path, *, label: str = "") -> None:
+    """Render an allow-listed tile sequence without accepting arbitrary paths."""
+    tiles = [tile_id for tile_id in (tile_ids or []) if isinstance(tile_id, str)]
+    if label:
+        st.caption(label)
+    if not tiles:
+        st.caption("なし")
+        return
+    columns = st.columns(len(tiles))
+    for column, tile_id in zip(columns, tiles, strict=True):
+        try:
+            asset = tile_asset(tile_id, asset_root=asset_root)
+        except ValueError:
+            column.write(tile_id)
+            continue
+        path = asset.path if asset.path.is_file() else asset_root / "missing.svg"
+        column.image(str(path), width=47)
+        column.caption(f"{tile_id}{'（未収録）' if not asset.supported else ''}")
+
+
+def _action_tile_ids(action: Any) -> list[str]:
+    if not isinstance(action, dict):
+        return []
+    values: list[str] = []
+    if isinstance(action.get("pai"), str):
+        values.append(action["pai"])
+    consumed = action.get("consumed")
+    if isinstance(consumed, list):
+        values.extend(value for value in consumed if isinstance(value, str))
+    return values
+
+
+def _render_action(action: Any, asset_root: Path, label: str) -> None:
+    st.markdown(f"**{label}**: {_format_action(action)}")
+    tile_ids = _action_tile_ids(action)
+    if tile_ids:
+        _render_tiles(tile_ids, asset_root)
+
+
+def _decision(connection: Any, review_root: Path, source_root: Path, asset_root: Path) -> None:
     st.title("局面詳細")
     default_id = st.session_state.get("selected_decision_id", 1)
     decision_id = st.number_input("decision_id", min_value=1, value=default_id, step=1)
@@ -369,11 +409,50 @@ def _decision(connection: Any, review_root: Path, source_root: Path) -> None:
     except (AnalyzerError, OSError, ValueError) as exc:
         st.error(str(exc)); return
     st.success(f"復元状態: {scene['status']}")
-    st.json({"identity": scene["identity"], "round": scene["round"], "score": scene["score"]})
-    st.subheader("手牌・副露"); st.write("手牌:", " ".join(scene["hand"]["tiles"] or [])); st.write("ツモ牌:", scene["hand"]["tsumo_tile"])
-    st.json({"fuuros": scene["hand"]["fuuros"], "shanten": scene["hand"]["shanten"], "self_riichi": scene["hand"]["self_riichi"]})
-    with st.expander("公開情報"): st.json(scene["public"])
-    with st.expander("Mortal評価"): st.json(scene["mortal"])
+    st.subheader("局面")
+    st.write(f"{scene['round']['bakaze']}場 {scene['round']['kyoku']}局 {scene['round']['honba']}本場 / {scene['round']['tiles_left']}枚残り / {scene['hand']['shanten']}向聴")
+    scores = scene["score"].get("scores_before") or []
+    if scores:
+        st.write("持ち点:", " / ".join(f"{index}家 {score:,}点" for index, score in enumerate(scores)))
+
+    st.subheader("自分の手牌")
+    _render_tiles(scene["hand"]["tiles"], asset_root, label="手牌")
+    if scene["hand"]["tsumo_tile"]:
+        _render_tiles([scene["hand"]["tsumo_tile"]], asset_root, label="ツモ牌")
+    fuuros = scene["hand"]["fuuros"] or []
+    if fuuros:
+        st.caption("自分の副露")
+        for index, meld in enumerate(fuuros, start=1):
+            _render_tiles(_action_tile_ids(meld), asset_root, label=f"副露 {index}")
+    else:
+        st.caption("自分の副露: なし")
+    st.write(f"本人リーチ: {'成立' if scene['hand']['self_riichi'] else 'なし'}")
+
+    st.subheader("公開情報")
+    st.caption("ドラ表示牌")
+    _render_tiles(scene["public"]["dora_markers"], asset_root)
+    for actor, river in enumerate(scene["public"]["rivers"]):
+        _render_tiles([item.get("pai") for item in river], asset_root, label=f"{actor}家の河")
+    for actor, melds in enumerate(scene["public"]["melds"]):
+        for index, meld in enumerate(melds, start=1):
+            _render_tiles(_action_tile_ids(meld), asset_root, label=f"{actor}家 副露 {index}")
+    st.write("成立済みリーチ:", ", ".join(f"{seat}家" for seat in scene["public"]["riichi_accepted_seats"]) or "なし")
+
+    st.subheader("Mortal評価")
+    mortal = scene["mortal"]
+    _render_action(mortal["selected_action"], asset_root, "本人の選択")
+    _render_action(mortal["mortal_first_action"], asset_root, "Mortal第一候補")
+    st.write("本人の推奨確率:", mortal["actual_probability"])
+    st.write("行動種類:", mortal["action_category"])
+    with st.expander("候補行動と推奨確率"):
+        for candidate in mortal["candidates"]:
+            action = candidate.get("action") if isinstance(candidate, dict) else None
+            probability = candidate.get("prob") if isinstance(candidate, dict) else None
+            _render_action(action, asset_root, f"推奨確率 {probability}")
+    with st.expander("開発用の詳細JSON"):
+        st.json({"identity": scene["identity"], "round": scene["round"], "hand": scene["hand"],
+                 "public": scene["public"], "score": scene["score"], "mortal": scene["mortal"],
+                 "none_judgment": scene["none_judgment"]})
     st.caption("Mortalの確率・Q値は評価情報であり、期待失点ではありません。")
     if st.button("候補一覧へ戻る"): st.session_state["navigation_target"] = "candidates"; st.rerun()
 
@@ -403,7 +482,8 @@ def main() -> None:
         if page == "home": _home(connection, configured)
         elif page == "analysis": _analysis(connection, summaries)
         elif page == "candidates": _candidates(connection, summaries)
-        else: _decision(connection, review_root, source_root)
+        else: _decision(connection, review_root, source_root,
+                        project_root / "assets/third_party/mj_king/tiles")
     finally: connection.close()
 
 
