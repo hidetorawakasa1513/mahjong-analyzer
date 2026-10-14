@@ -566,3 +566,82 @@ Phase 1のうち、レビューJSONの取り込み・SQLite保存・基本3指�
 - `.venv`、`local_data/`、SQLite拡張子を`.gitignore`対象にした。
 - CLIに認証コード入力機能や雀魂への通信処理は追加していない。
 - 元のレビューJSONは読み取り専用で扱い、変更しない。
+
+## 14. Phase 0-C：天鳳実牌譜1半荘の取り込み検証（2026-10-14）
+
+ユーザーが天鳳公式の牌譜検索・ダウンロードページから手動取得した、四人麻雀・半荘1件を入力に検証した。天鳳サーバーへの追加アクセス、牌譜URLからの再取得、認証処理は実施していない。
+
+### 入力ファイルと形式確認
+
+- 元ファイルはプロジェクト内の`data/raw/tenhou/`へ元バイト列のままコピーした。このディレクトリは`.gitignore`で除外されている。
+- `file`およびgzipマジック（`1f 8b`）から、拡張子`.mjlog`の実体はgzip圧縮されたXMLと確認した。
+- 展開後のルート要素は`<mjloggm ver="2.3">`。
+- XMLには`INIT` 11件、`AGARI` 10件、`RYUUKYOKU` 1件があり、1半荘分のデータと判断できる。
+- XMLの`UN`要素は4人分の名前・段位・レート・性別属性を持ち、`GO type="9"`、赤ドラ有効の四人東南戦だった。
+- ファイル名の`tw=3`は、XMLの4人目（0始まりの座席ID 3）のプレイヤー情報と一致した。推測だけでなく、`UN n3`と変換後の`name[3]`を照合して対象プレイヤーIDを3と確定した。
+- 変換後JSONの最終局の結果を反映した最終点数は、XMLの`owari`/最終得点と一致した。局数、和了・流局数、点数変化の完全なイベント意味検証は変換ツールの検証結果に依存するため、各打牌の手作業照合までは行っていない。
+
+### 変換
+
+監査済みのMahjong-Replay-Converter v0.2.3（固定コミット`61f5ae1f36ee7419173cccb03fe8afdf81d57e28`）のCLIを使用した。ローカルファイル変換は認証不要で、設定保存先だけを一時ディレクトリへ指定した。
+
+```sh
+MAHJONG_REPLAY_CONVERTER_CONFIG_DIR=/private/tmp/.../config \
+  /private/tmp/.../.venv/bin/mahjong-replay-converter convert-file \
+  data/raw/tenhou/<attached-game>.mjlog \
+  --output /private/tmp/.../output --format tenhou6
+```
+
+Converterの出力はTenhou/6 JSONとして生成されたが、暗槓2件が`a24242424`・`a34343434`の形式だった。mjai-reviewer 1.5.10のTenhou/6パーサーは暗槓マーカーを4枚目位置（例：`242424a24`）に要求するため、元ファイルとConverter出力を保持したまま、解析用コピーの2箇所だけマーカー位置を補正した。この互換性補正は一回限りの検証処理であり、変換器本体やプロジェクトの解析コードは変更していない。
+
+補正前のJSONをmjai-reviewerへ渡した場合は`invalid tile string: "a2"`で失敗した。補正後はMJAI JSON LinesとレビューJSONの生成に成功した。Converter v0.2.3とmjai-reviewer 1.5.10の暗槓表記互換性は未解決の改善課題として残す。
+
+### Mortal解析とSQLite保存
+
+既存の`analyze-log`を使用し、Mortal・mjai-reviewer・モデル・設定はPhase 0/1.5-Aで検証済みのものを再利用した。
+
+```sh
+export PATH="$PWD/.venv-mortal/bin:$PATH"
+.venv/bin/mahjong-analyzer analyze-log \
+  local_data/real-tenhou-<date>/<attached-game>.reviewer-compatible.json \
+  --player-id 3 \
+  --database local_data/real-tenhou-20261014/mahjong_analyzer.sqlite3 \
+  --reviewer-exe .phase0-work/mjai-reviewer/target/release/mjai-reviewer \
+  --mortal-exe .phase0-work/Mortal/mortal/mortal \
+  --mortal-cfg .phase0-work/Mortal/mortal/config.toml \
+  --python-path .phase0-work/Mortal/mortal \
+  --output-dir local_data/real-tenhou-20261014/analysis
+```
+
+実測値は次のとおり。値はこのモデル・温度・ルール条件に限った結果であり、客観的な正解率・悪手率・失点とは解釈しない。
+
+| 項目 | 実測値 |
+|---|---:|
+| 対象プレイヤーID | 3 |
+| `total_reviewed` | 136 |
+| `total_matches` | 103 |
+| AI一致率 | 103/136 = 0.7573529412 |
+| 低推奨行動数（`prob < 0.05`） | 30 |
+| 低推奨行動率 | 30/136 = 0.2205882353 |
+| Mortal Rating | 0.8974231516817629 |
+| Mortalモデル | `mortal4-b40c192-t26082106` |
+| reviewer | `mjai-reviewer 1.5.10` |
+| 温度 | 0.1 |
+| 実行デバイス | CPU |
+
+レビューJSONの実測値とSQLiteの`reviews`・`decisions`を照合し、games 1件、reviews 1件、decisions 136件が一致した。`list-games`、`show-game`、`summary`でも確認できた。同じ入力を再実行した結果は`duplicate`で、登録件数は変化しなかった。
+
+### 発生した問題と未解決事項
+
+- Converter CLIの初回実行では、最近使ったファイルの保存先をユーザーのApplication Supportへ作成しようとして権限エラーになった。設定ディレクトリを`MAHJONG_REPLAY_CONVERTER_CONFIG_DIR`で一時領域へ指定することで解決した。
+- Converter v0.2.3の暗槓Tenhou/6表記とmjai-reviewer 1.5.10の期待形式が一致しない。現時点では解析前の一時補正が必要であり、一般化した変換機能としては未実装。
+- 個人牌譜、変換JSON、MJAI、レビューJSON、SQLiteはプロジェクト内のGit管理外領域に保存している。公開ドキュメントにはプレイヤー名・個別局面・認証情報を記録していない。
+- MortalのCPU解析は成功したが、MPS経路、他ルール、他モデルでの結果は未検証。
+
+### テスト結果
+
+```sh
+.venv/bin/pytest
+```
+
+結果は19件成功。入力形式確認、ConverterによるTenhou/6 JSON生成、mjai-reviewer/Mortal実解析、JSONとSQLiteの指標照合、同一入力の重複防止を確認した。天鳳公式サイトへの追加通信は行っていない。
