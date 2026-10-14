@@ -93,6 +93,8 @@ def test_table_layout_keeps_player_zones_and_hand_meld_gap_explicit() -> None:
     assert ".ma-melds-top" in css and ".ma-melds-bottom" in css
     assert ".ma-center" in css and ".ma-legend" in css
     html = render_table_html(_scene(), ASSETS)
+    for testid in ("review-table", "center-info", "hand-self", "table-legend", "river-top", "river-left", "river-right", "river-bottom", "score-top", "score-left", "score-right", "score-bottom"):
+        assert f'data-testid="{testid}"' in html
     assert "ma-player-area" in html and "ma-hand-area" in html
     assert "ma-meld-area" in html and "ma-river-area" in html
 

@@ -96,7 +96,7 @@ def _river(items: list[dict[str, Any]], asset_root: Path, position: str) -> str:
             classes.append("ma-claimed")
         parts.append(_img(tile_id, asset_root, " ".join(classes)))
     rows = max(1, min(3, (len(parts) + 5) // 6))
-    return f'<div class="ma-river ma-river-area ma-river-rows-{rows} ma-river-{position}" aria-label="{position}の河">{"".join(parts)}</div>'
+    return f'<div data-testid="river-{position}" class="ma-river ma-river-area ma-river-rows-{rows} ma-river-{position}" aria-label="{position}の河">{"".join(parts)}</div>'
 
 
 def _called_side(meld: dict[str, Any]) -> str | None:
@@ -144,7 +144,7 @@ def _meld(meld: dict[str, Any], asset_root: Path) -> str:
 def _melds(items: list[dict[str, Any]], asset_root: Path, position: str) -> str:
     if not items:
         return ""
-    return f'<div class="ma-melds ma-meld-area ma-melds-{position}" aria-label="{position}の副露">{"".join(_meld(item, asset_root) for item in items)}</div>'
+    return f'<div data-testid="melds-{position}" class="ma-melds ma-meld-area ma-melds-{position}" aria-label="{position}の副露">{"".join(_meld(item, asset_root) for item in items)}</div>'
 
 
 def _score_text(data: dict[str, Any], seat: int) -> str:
@@ -168,7 +168,6 @@ def render_table_html(scene: dict[str, Any], asset_root: Path) -> str:
     tsumo = data["hand"].get("tsumo_tile")
     if isinstance(tsumo, str):
         hand_parts.append(_img(tsumo, asset_root, f"ma-tsumo {_highlight_class(tsumo, actual, expected)}", f"ツモ牌 {tsumo}"))
-    scores = " / ".join(_score_text(data, seat) for seat in range(4))
     riichi = [data["seat_labels"].get(seat, f"{seat}家") for seat in data["riichi_accepted_seats"]]
     pending = [data["seat_labels"].get(seat, f"{seat}家") for seat in data.get("riichi_pending_seats", [])]
     riichi_text = ", ".join(riichi) if riichi else "なし"
@@ -178,20 +177,20 @@ def render_table_html(scene: dict[str, Any], asset_root: Path) -> str:
     tiles_left = _text(round_data.get("tiles_left"), "未取得")
     kyotaku = _text(round_data.get("kyotaku"), "不明")
     dora = "".join(_img(value, asset_root, "ma-dora-tile", "ドラ表示牌") for value in data["dora_markers"])
-    return f'''<div class="ma-table-shell"><div class="ma-table">
-      <div class="ma-seat ma-player-area ma-seat-top">{_text(data['seat_labels'][seats.top])}　{_score_text(data, seats.top).split(' ', 1)[-1]}</div>
-      <div class="ma-seat ma-player-area ma-seat-left">{_text(data['seat_labels'][seats.left])}　{_score_text(data, seats.left).split(' ', 1)[-1]}</div>
-      <div class="ma-seat ma-player-area ma-seat-right">{_text(data['seat_labels'][seats.right])}　{_score_text(data, seats.right).split(' ', 1)[-1]}</div>
-      <div class="ma-seat ma-player-area ma-seat-bottom">自分　{_score_text(data, seats.self_seat).split(' ', 1)[-1]}</div>
+    return f'''<div data-testid="review-table-shell" class="ma-table-shell"><div data-testid="review-table" class="ma-table">
+      <div data-testid="score-top" class="ma-seat ma-player-area ma-seat-top">{_text(data['seat_labels'][seats.top])}　{_score_text(data, seats.top).split(' ', 1)[-1]}</div>
+      <div data-testid="score-left" class="ma-seat ma-player-area ma-seat-left">{_text(data['seat_labels'][seats.left])}　{_score_text(data, seats.left).split(' ', 1)[-1]}</div>
+      <div data-testid="score-right" class="ma-seat ma-player-area ma-seat-right">{_text(data['seat_labels'][seats.right])}　{_score_text(data, seats.right).split(' ', 1)[-1]}</div>
+      <div data-testid="score-bottom" class="ma-seat ma-player-area ma-seat-bottom">自分　{_score_text(data, seats.self_seat).split(' ', 1)[-1]}</div>
       {_river(data['rivers']['top'], asset_root, 'top')}{_river(data['rivers']['left'], asset_root, 'left')}
       {_river(data['rivers']['right'], asset_root, 'right')}{_river(data['rivers']['self'], asset_root, 'bottom')}
       {_melds(data['melds']['top'], asset_root, 'top')}{_melds(data['melds']['left'], asset_root, 'left')}
       {_melds(data['melds']['right'], asset_root, 'right')}{_melds(data['melds']['self'], asset_root, 'bottom')}
-      <div class="ma-center"><div><div class="ma-round-stat">{_text(round_data.get('bakaze'))}場 / {_text(round_data.get('kyoku'))}局 / {_text(round_data.get('honba'))}本場 / 供託 {kyotaku}</div>
+      <div data-testid="center-info" class="ma-center"><div><div class="ma-round-stat">{_text(round_data.get('bakaze'))}場 / {_text(round_data.get('kyoku'))}局 / {_text(round_data.get('honba'))}本場 / 供託 {kyotaku}</div>
         <h2>局面情報</h2><p>{_text(round_data.get('turn_number'))}巡目 / 残りツモ {tiles_left} / {_text(data['hand'].get('shanten'))}向聴</p>
-        <div class="ma-score-row"><span>{_text(scores)}</span></div><div class="ma-dora">ドラ {dora or '<span class="ma-muted">未取得</span>'}</div><p>リーチ: {_text(riichi_text)}</p></div></div>
-      <div class="ma-hand ma-hand-area" aria-label="本人の手牌">{"".join(hand_parts)}</div>
-    </div><div class="ma-legend">赤枠：本人の選択　紫枠：Mortal第一候補　黄＋紫：一致　／　赤点：ツモ切り</div></div>'''
+        <div class="ma-dora">ドラ {dora or '<span class="ma-muted">未取得</span>'}</div><p>リーチ: {_text(riichi_text)}</p></div></div>
+      <div data-testid="hand-self" class="ma-hand ma-hand-area" aria-label="本人の手牌">{"".join(hand_parts)}</div>
+    </div><div data-testid="table-legend" class="ma-legend">赤枠：本人の選択　紫枠：Mortal第一候補　黄＋紫：一致　／　赤点：ツモ切り</div></div>'''
 
 
 def _tile_sort_key(tile_id: str) -> tuple[int, int, str]:
