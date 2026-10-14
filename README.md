@@ -262,6 +262,17 @@ test -s local_data/config.json && echo "Tenhou local identity config exists"
 
 ホーム、状況別分析、復習候補、局面詳細の4画面を提供します。状況別分析と復習候補では評価条件を選択し、条件が一致するデータだけを扱います。統計は分子・分母を合算して比率を計算し、判断数・AI一致率・低推奨選択率を切り替えてグラフ表示できます。分析分類と条件は復習候補へ引き継がれ、候補はページ番号で閲覧できます。対局日時がDBにない場合は「日時不明」と表示し、ファイル更新日時や対局IDから補完しません。牌画像・麻雀卓表示・復習メモはPhase 3-B②の対象です。
 
+## 麻雀牌SVG素材プレビュー
+
+MJAIの牌識別子に対応する37種類の自作SVGは`assets/tiles/`にあります。生成し直す場合とプレビューする場合は次を実行します。
+
+```bash
+.venv/bin/python scripts/generate_tile_assets.py
+python3 -m http.server 8765 --bind 127.0.0.1 --directory assets/tiles
+```
+
+ブラウザで`http://127.0.0.1:8765/preview.html`を開くと分類別一覧を確認できます。Phase 3-B②までStreamlitの局面詳細画面には組み込みません。
+
 ## 今後の予定
 
 1. Mortalとmjai-reviewerの動作検証（完了・条件付き）

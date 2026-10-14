@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 112" role="img" aria-labelledby="title desc">
+  <title id="title">E</title>
+  <desc id="desc">字牌 東</desc>
+  <rect x="1" y="1" width="78" height="110" rx="8" fill="#fffdf8" stroke="#27313a" stroke-width="2"/>
+  <rect x="5" y="5" width="70" height="102" rx="5" fill="none" stroke="#d6d0c5" stroke-width="1"/>
+
+  <text x="40" y="74" text-anchor="middle" font-family="Hiragino Sans, Yu Gothic, Noto Sans CJK JP, sans-serif" font-size="42" font-weight="700" fill="#1464a0">東</text>
+  <path d="M18 91 H62" stroke="#1464a0" stroke-width="2" stroke-linecap="round"/>
+  <text x="40" y="101" text-anchor="middle" font-family="Arial, sans-serif" font-size="7" letter-spacing="1" fill="#59636b">E</text>
+</svg>

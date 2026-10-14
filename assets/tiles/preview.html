@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mahjong Analyzer — 麻雀牌SVGプレビュー</title>
+  <style>
+    :root { color-scheme: light dark; font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; }
+    body { margin: 0; padding: 24px; background: #f1f3f5; color: #17212b; }
+    @media (prefers-color-scheme: dark) { body { background: #15191d; color: #f2f4f5; } }
+    main { max-width: 1120px; margin: 0 auto; }
+    h1 { margin: 0 0 8px; font-size: 1.6rem; }
+    p { margin: 0 0 24px; color: #66727c; }
+    section { margin: 24px 0; padding: 16px; border: 1px solid #cbd3d9; border-radius: 12px; background: color-mix(in srgb, Canvas 94%, transparent); }
+    h2 { margin: 0 0 14px; font-size: 1.1rem; }
+    .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 14px 10px; }
+    figure { margin: 0; text-align: center; font-size: .76rem; }
+    figure img { display: block; width: 64px; height: 90px; margin: 0 auto 6px; }
+    figcaption { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .note { padding: 10px 12px; border-left: 4px solid #c0392b; background: color-mix(in srgb, #c0392b 10%, transparent); }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>麻雀牌SVGプレビュー</h1>
+    <p>Mahjong Analyzer用の自作SVG素材。MJAIの牌識別子をファイル名とキャプションに使用しています。</p>
+    <div class="note">赤5は通常の5牌と区別するため、赤い牌面記号と「赤」バッジを付けています。</div>
+
+    <section><h2>萬子</h2><div class="tiles">
+      <figure><img src="1m.svg" alt="1m"><figcaption>1m</figcaption></figure><figure><img src="2m.svg" alt="2m"><figcaption>2m</figcaption></figure><figure><img src="3m.svg" alt="3m"><figcaption>3m</figcaption></figure><figure><img src="4m.svg" alt="4m"><figcaption>4m</figcaption></figure><figure><img src="5m.svg" alt="5m"><figcaption>5m</figcaption></figure><figure><img src="6m.svg" alt="6m"><figcaption>6m</figcaption></figure><figure><img src="7m.svg" alt="7m"><figcaption>7m</figcaption></figure><figure><img src="8m.svg" alt="8m"><figcaption>8m</figcaption></figure><figure><img src="9m.svg" alt="9m"><figcaption>9m</figcaption></figure>
+    </div></section>
+    <section><h2>筒子</h2><div class="tiles">
+      <figure><img src="1p.svg" alt="1p"><figcaption>1p</figcaption></figure><figure><img src="2p.svg" alt="2p"><figcaption>2p</figcaption></figure><figure><img src="3p.svg" alt="3p"><figcaption>3p</figcaption></figure><figure><img src="4p.svg" alt="4p"><figcaption>4p</figcaption></figure><figure><img src="5p.svg" alt="5p"><figcaption>5p</figcaption></figure><figure><img src="6p.svg" alt="6p"><figcaption>6p</figcaption></figure><figure><img src="7p.svg" alt="7p"><figcaption>7p</figcaption></figure><figure><img src="8p.svg" alt="8p"><figcaption>8p</figcaption></figure><figure><img src="9p.svg" alt="9p"><figcaption>9p</figcaption></figure>
+    </div></section>
+    <section><h2>索子</h2><div class="tiles">
+      <figure><img src="1s.svg" alt="1s"><figcaption>1s</figcaption></figure><figure><img src="2s.svg" alt="2s"><figcaption>2s</figcaption></figure><figure><img src="3s.svg" alt="3s"><figcaption>3s</figcaption></figure><figure><img src="4s.svg" alt="4s"><figcaption>4s</figcaption></figure><figure><img src="5s.svg" alt="5s"><figcaption>5s</figcaption></figure><figure><img src="6s.svg" alt="6s"><figcaption>6s</figcaption></figure><figure><img src="7s.svg" alt="7s"><figcaption>7s</figcaption></figure><figure><img src="8s.svg" alt="8s"><figcaption>8s</figcaption></figure><figure><img src="9s.svg" alt="9s"><figcaption>9s</figcaption></figure>
+    </div></section>
+    <section><h2>字牌</h2><div class="tiles">
+      <figure><img src="E.svg" alt="E 東"><figcaption>E</figcaption></figure><figure><img src="S.svg" alt="S 南"><figcaption>S</figcaption></figure><figure><img src="W.svg" alt="W 西"><figcaption>W</figcaption></figure><figure><img src="N.svg" alt="N 北"><figcaption>N</figcaption></figure><figure><img src="P.svg" alt="P 白"><figcaption>P</figcaption></figure><figure><img src="F.svg" alt="F 發"><figcaption>F</figcaption></figure><figure><img src="C.svg" alt="C 中"><figcaption>C</figcaption></figure>
+    </div></section>
+    <section><h2>赤牌</h2><div class="tiles">
+      <figure><img src="5mr.svg" alt="5mr 赤5萬"><figcaption>5mr</figcaption></figure><figure><img src="5pr.svg" alt="5pr 赤5筒"><figcaption>5pr</figcaption></figure><figure><img src="5sr.svg" alt="5sr 赤5索"><figcaption>5sr</figcaption></figure>
+    </div></section>
+  </main>
+</body>
+</html>
